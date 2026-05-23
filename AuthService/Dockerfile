@@ -6,7 +6,7 @@ RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
 COPY --chown=spring:spring target/auth-service-*.jar app.jar
-COPY --chown=spring:spring src/main/resources/keys/ /app/keys/
+COPY --chown=spring:spring data/keys/ /app/keys/
 
 ENV SERVER_PORT=8080 \
     JWT_PRIVATE_KEY_PATH=file:/app/keys/private.pem \

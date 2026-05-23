@@ -18,7 +18,6 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.UUID;
 
 @Configuration
-@org.springframework.context.annotation.DependsOn("rsaKeyGenerator")
 public class JwtConfig {
 
     private final RsaKeyLoader rsaKeyLoader;

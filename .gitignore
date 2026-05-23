@@ -135,6 +135,8 @@ gradle-app.setting
 secrets/
 **/src/main/resources/keys/*.pem
 !**/src/main/resources/keys/.gitkeep
+**/data/keys/*.pem
+!**/data/keys/.gitkeep
 
 # =============================================================================
 # Logs & temp

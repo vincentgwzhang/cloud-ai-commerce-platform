@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:auth_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+app:
+  jwt:
+    issuer: auth-service-test
+    expiration-seconds: 3600
+    private-key-path: classpath:keys/private.pem
+    public-key-path: classpath:keys/public.pem
+
+logging:
+  level:
+    root: WARN
+    com.vincent.authservice: INFO

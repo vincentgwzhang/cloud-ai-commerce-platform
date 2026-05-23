@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KEY_DIR="${SCRIPT_DIR}/../src/main/resources/keys"
+KEY_DIR="${JWT_KEYS_DIR:-${SCRIPT_DIR}/../data/keys}"
 
 mkdir -p "${KEY_DIR}"
 
@@ -13,6 +13,9 @@ fi
 
 openssl genpkey -algorithm RSA -out "${KEY_DIR}/private.pem" -pkeyopt rsa_keygen_bits:2048
 openssl pkey -in "${KEY_DIR}/private.pem" -pubout -out "${KEY_DIR}/public.pem"
+
+chmod 600 "${KEY_DIR}/private.pem"
+chmod 644 "${KEY_DIR}/public.pem"
 
 echo "Generated RSA key pair:"
 echo "  ${KEY_DIR}/private.pem"

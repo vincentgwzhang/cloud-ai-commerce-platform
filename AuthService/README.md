@@ -36,11 +36,13 @@ If you already loaded the original seed file with placeholder BCrypt hashes:
 mysql -u vincent -p commerce_platform < scripts/update-user-passwords.sql
 ```
 
-Generate RSA keys (also auto-generated on first startup if missing):
+Generate RSA keys into `data/keys/` (or set `JWT_KEYS_DIR`):
 
 ```bash
 ./scripts/generate-rsa-keys.sh
 ```
+
+On first startup, keys are also auto-generated when using default `file:./data/keys/*.pem` paths.
 
 ## Configuration
 
@@ -55,14 +57,31 @@ Defaults in `src/main/resources/application.yml` support local, Docker, and Kube
 | `DB_USERNAME` | `vincent` |
 | `DB_PASSWORD` | `1q2w3e4R` |
 | `JWT_EXPIRATION_SECONDS` | `3600` |
-| `JWT_PRIVATE_KEY_PATH` | `classpath:keys/private.pem` |
-| `JWT_PUBLIC_KEY_PATH` | `classpath:keys/public.pem` |
+| `JWT_PRIVATE_KEY_PATH` | `file:./data/keys/private.pem` |
+| `JWT_PUBLIC_KEY_PATH` | `file:./data/keys/public.pem` |
+| `JWT_KEYS_DIR` | (script only) output directory for `generate-rsa-keys.sh` |
 
 ## Run locally
 
 ```bash
 mvn spring-boot:run
 ```
+
+## Tests & coverage
+
+Tests use an in-memory H2 database (`test` profile) and classpath RSA keys under `src/test/resources/keys/`.
+
+```bash
+mvn test verify
+```
+
+JaCoCo enforces **≥ 85% line coverage** on non-excluded code (DTOs, main class, and `PasswordHashGenerator` are excluded). Report:
+
+```text
+target/site/jacoco/index.html
+```
+
+Current coverage is ~98% lines after the test suite.
 
 ## API
 
@@ -94,15 +113,58 @@ http://localhost:8080/swagger-ui.html
 
 ## Docker
 
+MySQL on the **Ubuntu host** + app in **Docker** → do **not** use `DB_HOST=localhost` inside the container.  
+`localhost` in the container means the container itself, not your machine → `Connection refused`.
+
+### Build
+
 ```bash
 mvn -DskipTests package
-docker build -t auth-service:1.0.0 .
+./scripts/generate-rsa-keys.sh   # ensures data/keys/*.pem exist for the image
+docker build -t auth-service:1.0 .
+```
+
+### Run (recommended)
+
+```bash
+chmod +x scripts/docker-run.sh
+./scripts/docker-run.sh
+```
+
+Equivalent manual command:
+
+```bash
 docker run --rm -p 8080:8080 \
+  --add-host=host.docker.internal:host-gateway \
   -e DB_HOST=host.docker.internal \
   -e DB_USERNAME=vincent \
   -e DB_PASSWORD=1q2w3e4R \
-  auth-service:1.0.0
+  auth-service:1.0
 ```
+
+Optional: `-e SPRING_PROFILES_ACTIVE=docker` uses `application-docker.yml` defaults.
+
+### If MySQL still unreachable
+
+1. On the host, confirm MySQL listens beyond 127.0.0.1:
+   ```bash
+   ss -tlnp | grep 3306
+   ```
+   If only `127.0.0.1:3306`, set `bind-address = 0.0.0.0` in MySQL config and restart MySQL.
+
+2. **MySQL user must allow Docker IPs** (not only `localhost`). If you see:
+   `Host '172.17.0.x' is not allowed to connect to this MySQL server`
+   run on the host:
+   ```bash
+   sudo mysql < scripts/grant-mysql-docker-access.sql
+   ```
+   Check: `vincent` should have a row with `host` = `%` (see `SELECT user, host FROM mysql.user WHERE user='vincent';`).
+
+3. Test from a throwaway container:
+   ```bash
+   docker run --rm --add-host=host.docker.internal:host-gateway mysql:8 \
+     mysql -h host.docker.internal -u vincent -p1q2w3e4R -e "SELECT 1"
+   ```
 
 ## Kubernetes
 

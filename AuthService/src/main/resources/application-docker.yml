@@ -1,0 +1,9 @@
+# Active with: SPRING_PROFILES_ACTIVE=docker (or use scripts/docker-run.sh)
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:host.docker.internal}:${DB_PORT:3306}/${DB_NAME:commerce_platform}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+
+app:
+  jwt:
+    private-key-path: ${JWT_PRIVATE_KEY_PATH:file:/app/keys/private.pem}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:/app/keys/public.pem}

@@ -1,0 +1,178 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Cloud AI Commerce Platform",
+    "description": "API collection for commerce platform microservices.\n\n## Authorization (every request)\n\n1. Run **Auth Service → Login**.\n2. `accessToken` is saved to collection + environment.\n3. **Collection Pre-request Script** adds `Authorization: Bearer <token>` to **every** HTTP request (including Health), when a token exists.\n4. Only **Validate Token (missing token)** opts out via its own pre-request script.\n\nRe-import this file if Postman still shows **No Auth** on Health.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const token = pm.collectionVariables.get('accessToken')",
+          "    || (pm.environment ? pm.environment.get('accessToken') : '');",
+          "",
+          "if (token) {",
+          "    pm.request.headers.upsert({",
+          "        key: 'Authorization',",
+          "        value: 'Bearer ' + token",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "authServiceBaseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth Service",
+      "description": "All requests send `Authorization: Bearer {{accessToken}}` after Login (via collection pre-request script). Backend may ignore it on public routes.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/health",
+              "host": ["{{authServiceBaseUrl}}"],
+              "path": ["api", "v1", "auth", "health"]
+            },
+            "description": "Sends Bearer token automatically after Login (API does not require it). Check **Headers** tab for `Authorization`."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    const token = json.accessToken;",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    if (pm.environment) {",
+                  "        pm.environment.set('accessToken', token);",
+                  "    }",
+                  "    pm.test('accessToken saved for entire collection', function () {",
+                  "        pm.expect(token).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "    console.log('accessToken updated — next requests will send Authorization header.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"vincent\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/login",
+              "host": ["{{authServiceBaseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Run first (or when token expires). On success, saves `accessToken` for all other requests.\n\nSample users: `vincent` / `admin` / `tester` — password `123456`."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (invalid credentials)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"vincent\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/login",
+              "host": ["{{authServiceBaseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Also sends Bearer if token exists. Expected HTTP 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/validate",
+              "host": ["{{authServiceBaseUrl}}"],
+              "path": ["api", "v1", "auth", "validate"]
+            },
+            "description": "Requires valid token from **Login**. Expected: `{ \"valid\": true, ... }`"
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Token (missing token)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/validate",
+              "host": ["{{authServiceBaseUrl}}"],
+              "path": ["api", "v1", "auth", "validate"]
+            },
+            "description": "Only request that **strips** Authorization (for testing 401). Expected HTTP 401."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
