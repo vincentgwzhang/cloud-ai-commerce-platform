@@ -1,0 +1,189 @@
+# =============================================================================
+# OS
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =============================================================================
+# IntelliJ IDEA / Android Studio
+# =============================================================================
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea_modules/
+atlassian-ide-plugin.xml
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# =============================================================================
+# Eclipse / STS
+# =============================================================================
+.classpath
+.project
+.settings/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.recommenders
+.factorypath
+.buildpath
+.target/
+.apt_generated/
+.apt_generated_test/
+.springBeans
+.sts4-cache/
+.pmd
+.pmdruleset.xml
+
+# =============================================================================
+# NetBeans
+# =============================================================================
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# =============================================================================
+# VS Code
+# =============================================================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# =============================================================================
+# Cursor
+# =============================================================================
+# Local / machine-specific Cursor config (keep .cursor/rules if you add them)
+.cursor/mcp.json.local
+.cursor/**/*.log
+
+# =============================================================================
+# JetBrains Fleet (optional)
+# =============================================================================
+.fleet/
+
+# =============================================================================
+# Java
+# =============================================================================
+*.class
+*.ctxt
+hs_err_pid*
+replay_pid*
+
+# =============================================================================
+# Maven (all microservices)
+# =============================================================================
+**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# =============================================================================
+# Gradle (if added later)
+# =============================================================================
+.gradle/
+**/build/
+!**/src/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# =============================================================================
+# Spring Boot / local overrides (secrets & personal config)
+# =============================================================================
+**/application-local.yml
+**/application-local.yaml
+**/application-local.properties
+**/application-*.local.yml
+**/application-*.local.yaml
+**/application-*.local.properties
+
+# =============================================================================
+# Environment & secrets
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.key
+*.p12
+*.jks
+*.keystore
+secrets/
+**/src/main/resources/keys/*.pem
+!**/src/main/resources/keys/.gitkeep
+
+# =============================================================================
+# Logs & temp
+# =============================================================================
+logs/
+*.log
+*.log.*
+*.pid
+*.seed
+*.pid.lock
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+
+# =============================================================================
+# Test / coverage
+# =============================================================================
+**/surefire-reports/
+**/failsafe-reports/
+**/test-output/
+.jacoco/
+jacoco.exec
+*.exec
+.coverage
+htmlcov/
+.nyc_output/
+
+# =============================================================================
+# Docker / Compose (local overrides)
+# =============================================================================
+docker-compose.override.yml
+docker-compose.*.local.yml
+.docker/
+
+# =============================================================================
+# Kubernetes (local kubeconfig snippets — do not commit cluster creds)
+# =============================================================================
+kubeconfig
+*.kubeconfig
+
+# =============================================================================
+# Misc editor / tooling
+# =============================================================================
+.history/
+.ionide/
+*.sublime-workspace
+*.sublime-project
+.projectile
+.dir-locals.el
+*.orig
