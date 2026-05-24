@@ -36,6 +36,12 @@ devops_init_paths() {
       DEVOPS_SCRIPT_DIR="$(cd "${script_dir}/.." && pwd)"
       DEVOPS_ROOT="$(cd "${script_dir}/../.." && pwd)"
       ;;
+    */devops/script/GatewayService)
+      SERVICE_NAME="GatewayService"
+      DEVOPS_SCRIPT_SERVICE_DIR="${script_dir}"
+      DEVOPS_SCRIPT_DIR="$(cd "${script_dir}/.." && pwd)"
+      DEVOPS_ROOT="$(cd "${script_dir}/../.." && pwd)"
+      ;;
     */devops/script)
       SERVICE_NAME=""
       DEVOPS_SCRIPT_SERVICE_DIR=""

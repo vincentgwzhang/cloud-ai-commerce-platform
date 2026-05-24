@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+app:
+  jwt:
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:/app/keys/public.pem}
+  routes:
+    product-uri: ${PRODUCT_SERVICE_URI:http://host.docker.internal:8081}
+    inventory-uri: ${INVENTORY_SERVICE_URI:http://host.docker.internal:8082}
+    order-uri: ${ORDER_SERVICE_URI:http://host.docker.internal:8083}

@@ -1,0 +1,10 @@
+spring:
+  config:
+    activate:
+      on-profile: k8s
+
+app:
+  routes:
+    product-uri: ${PRODUCT_SERVICE_URI:http://product-service:80}
+    inventory-uri: ${INVENTORY_SERVICE_URI:http://inventory-service:80}
+    order-uri: ${ORDER_SERVICE_URI:http://order-service:80}

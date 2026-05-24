@@ -53,6 +53,11 @@ export MINIKUBE_SKIP_UNINSTALL=1
 "${SCRIPT_ROOT}/OrderService/minikube-deploy.sh"
 
 echo ""
+echo "==> Step 5: deploy GatewayService"
+export MINIKUBE_SKIP_UNINSTALL=1
+"${SCRIPT_ROOT}/GatewayService/minikube-deploy.sh"
+
+echo ""
 echo "========================================"
 echo "  Install complete"
 echo "========================================"
@@ -64,6 +69,8 @@ echo "  Inventory: minikube service inventory-service --url"
 echo "             kubectl port-forward svc/inventory-service 8082:80"
 echo "  Order:     minikube service order-service --url"
 echo "             kubectl port-forward svc/order-service 8083:80"
+echo "  Gateway:   minikube service gateway-service --url"
+echo "             kubectl port-forward svc/gateway-service 8088:80"
 echo ""
 echo "  Kafka:     localhost:9092 (devops/script/docker-compose-app.yml)"
 echo ""

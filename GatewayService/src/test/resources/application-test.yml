@@ -1,0 +1,17 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+
+app:
+  jwt:
+    issuer: auth-service-test
+    public-key-path: classpath:keys/public.pem
+  routes:
+    product-uri: http://localhost:18081
+    inventory-uri: http://localhost:18082
+    order-uri: http://localhost:18083

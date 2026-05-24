@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "Cloud AI Commerce Platform",
-    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service → Login** — saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** — when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product / Inventory** — run **Login** first; collection script sends `Authorization: Bearer {{accessToken}}` on protected routes.\n\n## Services (local defaults)\n\n| Variable | Port |\n|----------|------|\n| `authServiceBaseUrl` | 8080 |\n| `productServiceBaseUrl` | 8081 |\n| `inventoryServiceBaseUrl` | 8082 |\n\n## Inventory product codes (seed)\n\n`IPHONE17`, `RTX5090`, `PS6` — see `devops/db/init.sql` (catalog uses `IPHONE-17` etc. in ProductService).\n\nRe-import after collection updates.",
+    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service \u2192 Login** \u2014 saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** \u2014 when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product / Inventory / Order** \u2014 run **Login** first; Bearer token is sent automatically.\n\n## Services (local defaults)\n\n| Variable | Port | Notes |\n|----------|------|-------|\n| `authServiceBaseUrl` | 8080 | Login directly |\n| `gatewayServiceBaseUrl` | 8088 | API gateway |\n| `productServiceBaseUrl` | 8081 | Direct |\n| `inventoryServiceBaseUrl` | 8082 | Direct |\n| `orderServiceBaseUrl` | 8083 | Direct |\n\n## Inventory product codes (seed)\n\n`IPHONE17`, `RTX5090`, `PS6` \u2014 see `devops/db/init.sql`.\n\nRe-import after collection updates.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -38,6 +38,11 @@
     {
       "key": "authServiceBaseUrl",
       "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "gatewayServiceBaseUrl",
+      "value": "http://localhost:8088",
       "type": "string"
     },
     {
@@ -88,8 +93,584 @@
   ],
   "item": [
     {
+      "name": "Gateway Service",
+      "description": "Port **8088** \u2014 single entry for Product, Inventory, and Order. JWT validated at the edge. Use subfolders below; **Auth Service \u2192 Login** still goes to port 8080.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayServiceBaseUrl}}/api/gateway/health",
+              "host": [
+                "{{gatewayServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "gateway",
+                "health"
+              ]
+            },
+            "description": "Gateway process health (no JWT)."
+          },
+          "response": []
+        },
+        {
+          "name": "ProductService",
+          "description": "Same APIs as **Product Service**, routed through gateway (`{{gatewayServiceBaseUrl}}`, port 8088). Run **Auth Service \u2192 Login** first.",
+          "item": [
+            {
+              "name": "Health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products/health",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products",
+                    "health"
+                  ]
+                },
+                "description": "Public health check. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+              },
+              "response": []
+            },
+            {
+              "name": "List Products",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products"
+                  ]
+                },
+                "description": "Requires valid JWT. Returns seed catalog (iPhone 17, RTX 5090, PS6)."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Product by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products/1",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products",
+                    "1"
+                  ]
+                },
+                "description": "Requires valid JWT. Product id=1 is iPhone 17 (Redis cache-aside)."
+              },
+              "response": []
+            },
+            {
+              "name": "Hot Products",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products/hot",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products",
+                    "hot"
+                  ]
+                },
+                "description": "Requires valid JWT. Preloaded hot product IDs (1, 2, 3)."
+              },
+              "response": []
+            },
+            {
+              "name": "List Products (missing token)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.request.headers.remove('Authorization');"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products"
+                  ]
+                },
+                "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "InventoryService",
+          "description": "Same APIs as **Inventory Service**, routed through gateway (`{{gatewayServiceBaseUrl}}`, port 8088). Run **Auth Service \u2192 Login** first.",
+          "item": [
+            {
+              "name": "Health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/health",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "health"
+                  ]
+                },
+                "description": "Public. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Inventory",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "{{inventoryProductCode}}"
+                  ]
+                },
+                "description": "Requires JWT. Set `inventoryProductCode` (default `IPHONE17`)."
+              },
+              "response": []
+            },
+            {
+              "name": "Reserve Stock",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                      "pm.collectionVariables.set('inventoryRequestId', requestId);",
+                      "if (pm.environment) {",
+                      "    pm.environment.set('inventoryRequestId', requestId);",
+                      "}"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    pm.test('reserve succeeded', function () {",
+                      "        pm.expect(pm.response.json().success).to.eql(true);",
+                      "    });",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/reserve",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "reserve"
+                  ]
+                },
+                "description": "Reserves stock (available \u2192 reserved). Saves `inventoryRequestId` for idempotency demo."
+              },
+              "response": []
+            },
+            {
+              "name": "Reserve (idempotent retry)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/reserve",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "reserve"
+                  ]
+                },
+                "description": "Run after **Reserve Stock** with the same `inventoryRequestId`. Should return the same result without double-reserving."
+              },
+              "response": []
+            },
+            {
+              "name": "Release Stock",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                      "pm.collectionVariables.set('inventoryRequestId', requestId);",
+                      "if (pm.environment) {",
+                      "    pm.environment.set('inventoryRequestId', requestId);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/release",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "release"
+                  ]
+                },
+                "description": "Moves quantity from reserved back to available. Use after **Reserve Stock**."
+              },
+              "response": []
+            },
+            {
+              "name": "Deduct Stock",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                      "pm.collectionVariables.set('inventoryRequestId', requestId);",
+                      "if (pm.environment) {",
+                      "    pm.environment.set('inventoryRequestId', requestId);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/deduct",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "deduct"
+                  ]
+                },
+                "description": "Consumes reserved stock (e.g. after payment). Reserve first, then deduct."
+              },
+              "response": []
+            },
+            {
+              "name": "Concurrent Reserve Demo",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.request.headers.remove('Authorization');"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"RTX5090\",\n  \"concurrentRequests\": 30,\n  \"quantityPerRequest\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/demo/concurrent-reserve",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "demo",
+                    "concurrent-reserve"
+                  ]
+                },
+                "description": "Public stress demo (no JWT). RTX5090 seed stock = 20; expect successes \u2264 20."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Inventory (missing token)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.request.headers.remove('Authorization');"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "inventory",
+                    "{{inventoryProductCode}}"
+                  ]
+                },
+                "description": "Strips Authorization. Expected HTTP 401."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "OrderService",
+          "description": "Same APIs as **Order Service**, routed through gateway (`{{gatewayServiceBaseUrl}}`, port 8088). Run **Auth Service \u2192 Login** first.",
+          "item": [
+            {
+              "name": "Health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/orders/health",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders",
+                    "health"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create Order",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                      "pm.collectionVariables.set('orderRequestId', requestId);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const orderNo = pm.response.json().data.orderNo;",
+                      "    pm.collectionVariables.set('lastOrderNo', orderNo);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"IPHONE17\",\n  \"quantity\": 1,\n  \"requestId\": \"{{orderRequestId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/orders",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Order",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/orders/{{lastOrderNo}}",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders",
+                    "{{lastOrderNo}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Order Status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/orders/status/{{lastOrderNo}}",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders",
+                    "status",
+                    "{{lastOrderNo}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cancel Order",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/orders/{{lastOrderNo}}/cancel",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders",
+                    "{{lastOrderNo}}",
+                    "cancel"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Auth Service",
-      "description": "Recommended order: **Login** → **Refresh Token** (when JWT expires) → **Validate Token**.\n\nVariables: `accessToken` (Bearer JWT), `refreshToken` (body for `/refresh` only).",
+      "description": "Recommended order: **Login** \u2192 **Refresh Token** (when JWT expires) \u2192 **Validate Token**.\n\nVariables: `accessToken` (Bearer JWT), `refreshToken` (body for `/refresh` only).",
       "item": [
         {
           "name": "Health",
@@ -98,8 +679,15 @@
             "header": [],
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/health",
-              "host": ["{{authServiceBaseUrl}}"],
-              "path": ["api", "v1", "auth", "health"]
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "health"
+              ]
             },
             "description": "Sends Bearer token automatically after Login (API does not require it). Check **Headers** tab for `Authorization`."
           },
@@ -138,7 +726,7 @@
                   "    pm.test('refreshToken saved for refresh endpoint', function () {",
                   "        pm.expect(refresh).to.be.a('string').and.not.empty;",
                   "    });",
-                  "    console.log('accessToken updated — next requests will send Authorization header.');",
+                  "    console.log('accessToken updated \u2014 next requests will send Authorization header.');",
                   "}"
                 ]
               }
@@ -161,10 +749,17 @@
             },
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/login",
-              "host": ["{{authServiceBaseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
-            "description": "Run first (or to get a new session). On success, saves `accessToken` and `refreshToken`.\n\nWhen the JWT expires (~1h), use **Refresh Token** instead of logging in again.\n\nSample users: `vincent` / `admin` / `tester` — password `123456`."
+            "description": "Run first (or to get a new session). On success, saves `accessToken` and `refreshToken`.\n\nWhen the JWT expires (~1h), use **Refresh Token** instead of logging in again.\n\nSample users: `vincent` / `admin` / `tester` \u2014 password `123456`."
           },
           "response": []
         },
@@ -219,10 +814,17 @@
             },
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/refresh",
-              "host": ["{{authServiceBaseUrl}}"],
-              "path": ["api", "v1", "auth", "refresh"]
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
             },
-            "description": "Run after **Login** when `accessToken` is expired or before it expires to rotate refresh token.\n\n- Request body: `{ \"refreshToken\": \"{{refreshToken}}\" }` (no Bearer required).\n- On 200: overwrites `accessToken` and `refreshToken` — always use the latest refresh value.\n- Reusing an old refresh token returns 401."
+            "description": "Run after **Login** when `accessToken` is expired or before it expires to rotate refresh token.\n\n- Request body: `{ \"refreshToken\": \"{{refreshToken}}\" }` (no Bearer required).\n- On 200: overwrites `accessToken` and `refreshToken` \u2014 always use the latest refresh value.\n- Reusing an old refresh token returns 401."
           },
           "response": []
         },
@@ -242,8 +844,15 @@
             },
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/refresh",
-              "host": ["{{authServiceBaseUrl}}"],
-              "path": ["api", "v1", "auth", "refresh"]
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
             },
             "description": "Expected HTTP 401 with message `Invalid refresh token`."
           },
@@ -265,8 +874,15 @@
             },
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/login",
-              "host": ["{{authServiceBaseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             },
             "description": "Also sends Bearer if token exists. Expected HTTP 401."
           },
@@ -279,8 +895,15 @@
             "header": [],
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/validate",
-              "host": ["{{authServiceBaseUrl}}"],
-              "path": ["api", "v1", "auth", "validate"]
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "validate"
+              ]
             },
             "description": "Requires valid `accessToken` from **Login** or **Refresh Token**. Expected: `{ \"valid\": true, ... }`"
           },
@@ -304,8 +927,15 @@
             "header": [],
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/validate",
-              "host": ["{{authServiceBaseUrl}}"],
-              "path": ["api", "v1", "auth", "validate"]
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "validate"
+              ]
             },
             "description": "Only request that **strips** Authorization (for testing 401). Expected HTTP 401."
           },
@@ -315,7 +945,7 @@
     },
     {
       "name": "Product Service",
-      "description": "Requires JWT from **Auth Service → Login** (ProductService on port 8081). Collection pre-request script adds Bearer automatically.",
+      "description": "Direct to ProductService (**8081**). For gateway use **Gateway Service \u2192 ProductService**.",
       "item": [
         {
           "name": "Health",
@@ -324,8 +954,15 @@
             "header": [],
             "url": {
               "raw": "{{productServiceBaseUrl}}/api/v1/products/health",
-              "host": ["{{productServiceBaseUrl}}"],
-              "path": ["api", "v1", "products", "health"]
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "health"
+              ]
             },
             "description": "Public health check. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
           },
@@ -338,8 +975,14 @@
             "header": [],
             "url": {
               "raw": "{{productServiceBaseUrl}}/api/v1/products",
-              "host": ["{{productServiceBaseUrl}}"],
-              "path": ["api", "v1", "products"]
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ]
             },
             "description": "Requires valid JWT. Returns seed catalog (iPhone 17, RTX 5090, PS6)."
           },
@@ -352,8 +995,15 @@
             "header": [],
             "url": {
               "raw": "{{productServiceBaseUrl}}/api/v1/products/1",
-              "host": ["{{productServiceBaseUrl}}"],
-              "path": ["api", "v1", "products", "1"]
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "1"
+              ]
             },
             "description": "Requires valid JWT. Product id=1 is iPhone 17 (Redis cache-aside)."
           },
@@ -366,8 +1016,15 @@
             "header": [],
             "url": {
               "raw": "{{productServiceBaseUrl}}/api/v1/products/hot",
-              "host": ["{{productServiceBaseUrl}}"],
-              "path": ["api", "v1", "products", "hot"]
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "hot"
+              ]
             },
             "description": "Requires valid JWT. Preloaded hot product IDs (1, 2, 3)."
           },
@@ -391,8 +1048,14 @@
             "header": [],
             "url": {
               "raw": "{{productServiceBaseUrl}}/api/v1/products",
-              "host": ["{{productServiceBaseUrl}}"],
-              "path": ["api", "v1", "products"]
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ]
             },
             "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
           },
@@ -402,7 +1065,7 @@
     },
     {
       "name": "Inventory Service",
-      "description": "Port **8082**. Requires JWT except **Health** and **Concurrent Reserve Demo**.\n\nRun **Auth Service → Login** first. Seed SKUs: `IPHONE17` (100), `RTX5090` (20), `PS6` (50).\n\nUse a unique `requestId` per mutation; **Reserve (idempotent retry)** reuses `{{inventoryRequestId}}`.",
+      "description": "Direct to InventoryService (**8082**). For gateway use **Gateway Service \u2192 InventoryService**.",
       "item": [
         {
           "name": "Health",
@@ -411,8 +1074,14 @@
             "header": [],
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/health",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "health"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "health"
+              ]
             },
             "description": "Public. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
           },
@@ -425,8 +1094,14 @@
             "header": [],
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "{{inventoryProductCode}}"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "{{inventoryProductCode}}"
+              ]
             },
             "description": "Requires JWT. Set `inventoryProductCode` (default `IPHONE17`)."
           },
@@ -476,10 +1151,16 @@
             },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/reserve",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "reserve"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "reserve"
+              ]
             },
-            "description": "Reserves stock (available → reserved). Saves `inventoryRequestId` for idempotency demo."
+            "description": "Reserves stock (available \u2192 reserved). Saves `inventoryRequestId` for idempotency demo."
           },
           "response": []
         },
@@ -499,8 +1180,14 @@
             },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/reserve",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "reserve"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "reserve"
+              ]
             },
             "description": "Run after **Reserve Stock** with the same `inventoryRequestId`. Should return the same result without double-reserving."
           },
@@ -537,8 +1224,14 @@
             },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/release",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "release"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "release"
+              ]
             },
             "description": "Moves quantity from reserved back to available. Use after **Reserve Stock**."
           },
@@ -575,8 +1268,14 @@
             },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/deduct",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "deduct"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "deduct"
+              ]
             },
             "description": "Consumes reserved stock (e.g. after payment). Reserve first, then deduct."
           },
@@ -612,10 +1311,17 @@
             },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/demo/concurrent-reserve",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "demo", "concurrent-reserve"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "demo",
+                "concurrent-reserve"
+              ]
             },
-            "description": "Public stress demo (no JWT). RTX5090 seed stock = 20; expect successes ≤ 20."
+            "description": "Public stress demo (no JWT). RTX5090 seed stock = 20; expect successes \u2264 20."
           },
           "response": []
         },
@@ -637,8 +1343,14 @@
             "header": [],
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
-              "host": ["{{inventoryServiceBaseUrl}}"],
-              "path": ["api", "inventory", "{{inventoryProductCode}}"]
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "{{inventoryProductCode}}"
+              ]
             },
             "description": "Strips Authorization. Expected HTTP 401."
           },
@@ -648,7 +1360,7 @@
     },
     {
       "name": "Order Service",
-      "description": "Port **8083**. Kafka required (`localhost:9092`). Run **Login** first.",
+      "description": "Direct to OrderService (**8083**). Kafka required. For gateway use **Gateway Service \u2192 OrderService**.",
       "item": [
         {
           "name": "Health",
@@ -657,8 +1369,14 @@
             "header": [],
             "url": {
               "raw": "{{orderServiceBaseUrl}}/api/orders/health",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["api", "orders", "health"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "health"
+              ]
             }
           },
           "response": []
@@ -691,15 +1409,25 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"productCode\": \"IPHONE17\",\n  \"quantity\": 1,\n  \"requestId\": \"{{orderRequestId}}\"\n}"
             },
             "url": {
               "raw": "{{orderServiceBaseUrl}}/api/orders",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["api", "orders"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
             }
           },
           "response": []
@@ -711,8 +1439,14 @@
             "header": [],
             "url": {
               "raw": "{{orderServiceBaseUrl}}/api/orders/{{lastOrderNo}}",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["api", "orders", "{{lastOrderNo}}"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{lastOrderNo}}"
+              ]
             }
           },
           "response": []
@@ -724,8 +1458,15 @@
             "header": [],
             "url": {
               "raw": "{{orderServiceBaseUrl}}/api/orders/status/{{lastOrderNo}}",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["api", "orders", "status", "{{lastOrderNo}}"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "status",
+                "{{lastOrderNo}}"
+              ]
             }
           },
           "response": []
@@ -737,8 +1478,15 @@
             "header": [],
             "url": {
               "raw": "{{orderServiceBaseUrl}}/api/orders/{{lastOrderNo}}/cancel",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["api", "orders", "{{lastOrderNo}}", "cancel"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{lastOrderNo}}",
+                "cancel"
+              ]
             }
           },
           "response": []

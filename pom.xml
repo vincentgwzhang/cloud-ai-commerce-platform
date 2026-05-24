@@ -19,6 +19,7 @@
     <description>Commerce platform microservices monorepo</description>
 
     <modules>
+        <module>GatewayService</module>
         <module>AuthService</module>
         <module>ProductService</module>
         <module>InventoryService</module>
