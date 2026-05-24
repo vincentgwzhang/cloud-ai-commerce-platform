@@ -1,7 +1,7 @@
 package com.vincent.productservice.cache;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import com.vincent.productservice.config.ProductCacheProperties;
 import com.vincent.productservice.dto.ProductResponse;
 import com.vincent.productservice.entity.Product;
@@ -26,7 +26,7 @@ public class ProductCacheService {
     private static final Logger log = LoggerFactory.getLogger(ProductCacheService.class);
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final ProductRepository productRepository;
     private final ProductCacheLock cacheLock;
     private final String keyPrefix;
@@ -34,13 +34,13 @@ public class ProductCacheService {
 
     public ProductCacheService(
             StringRedisTemplate redisTemplate,
-            ObjectMapper objectMapper,
+            JsonMapper jsonMapper,
             ProductRepository productRepository,
             ProductCacheLock cacheLock,
             ProductCacheProperties cacheProperties
     ) {
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
+        this.jsonMapper = jsonMapper;
         this.productRepository = productRepository;
         this.cacheLock = cacheLock;
         this.keyPrefix = cacheProperties.keyPrefix();
@@ -109,8 +109,8 @@ public class ProductCacheService {
             return Optional.empty();
         }
         try {
-            return Optional.of(objectMapper.readValue(json, ProductResponse.class));
-        } catch (JsonProcessingException ex) {
+            return Optional.of(jsonMapper.readValue(json, ProductResponse.class));
+        } catch (JacksonException ex) {
             log.warn("Invalid cache payload for key={}, evicting", cacheKey);
             redisTemplate.delete(cacheKey);
             return Optional.empty();
@@ -119,8 +119,8 @@ public class ProductCacheService {
 
     private void writeCache(String cacheKey, ProductResponse product) {
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(product), ttl);
-        } catch (JsonProcessingException ex) {
+            redisTemplate.opsForValue().set(cacheKey, jsonMapper.writeValueAsString(product), ttl);
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Failed to serialize product cache", ex);
         }
     }

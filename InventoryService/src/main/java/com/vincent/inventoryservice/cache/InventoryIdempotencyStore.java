@@ -1,7 +1,7 @@
 package com.vincent.inventoryservice.cache;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import com.vincent.inventoryservice.config.InventoryProperties;
 import com.vincent.inventoryservice.dto.InventoryResponse;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -18,17 +18,17 @@ import java.util.Optional;
 public class InventoryIdempotencyStore {
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final String keyPrefix;
     private final Duration ttl;
 
     public InventoryIdempotencyStore(
             StringRedisTemplate redisTemplate,
-            ObjectMapper objectMapper,
+            JsonMapper jsonMapper,
             InventoryProperties properties
     ) {
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
+        this.jsonMapper = jsonMapper;
         this.keyPrefix = properties.idempotencyPrefix();
         this.ttl = properties.idempotencyTtl();
     }
@@ -39,8 +39,8 @@ public class InventoryIdempotencyStore {
             return Optional.empty();
         }
         try {
-            return Optional.of(objectMapper.readValue(json, InventoryResponse.class));
-        } catch (JsonProcessingException ex) {
+            return Optional.of(jsonMapper.readValue(json, InventoryResponse.class));
+        } catch (JacksonException ex) {
             redisTemplate.delete(keyPrefix + requestId);
             return Optional.empty();
         }
@@ -55,10 +55,10 @@ public class InventoryIdempotencyStore {
         try {
             redisTemplate.opsForValue().set(
                     keyPrefix + requestId,
-                    objectMapper.writeValueAsString(response),
+                    jsonMapper.writeValueAsString(response),
                     ttl
             );
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Failed to serialize idempotency payload", ex);
         }
     }

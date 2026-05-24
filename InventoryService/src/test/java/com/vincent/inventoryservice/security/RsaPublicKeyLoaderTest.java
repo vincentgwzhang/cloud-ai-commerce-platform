@@ -8,6 +8,7 @@ import org.springframework.core.io.DefaultResourceLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPublicKey;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,7 +16,7 @@ class RsaPublicKeyLoaderTest {
 
     @Test
     void loadsPublicKeyFromClasspath() throws Exception {
-        JwtProperties properties = new JwtProperties("auth-service-test", "classpath:keys/public.pem");
+        JwtProperties properties = new JwtProperties("auth-service-test", "classpath:keys/public.pem", List.of());
         RsaPublicKeyLoader loader = new RsaPublicKeyLoader(new DefaultResourceLoader(), properties);
 
         RSAPublicKey publicKey = loader.loadPublicKey();
@@ -32,7 +33,7 @@ class RsaPublicKeyLoaderTest {
             Files.write(keyFile, in.readAllBytes());
         }
 
-        JwtProperties properties = new JwtProperties("auth-service-test", "file:" + keyFile.toAbsolutePath());
+        JwtProperties properties = new JwtProperties("auth-service-test", "file:" + keyFile.toAbsolutePath(), List.of());
         RsaPublicKeyLoader loader = new RsaPublicKeyLoader(new DefaultResourceLoader(), properties);
 
         assertThat(loader.loadPublicKey().getAlgorithm()).isEqualTo("RSA");

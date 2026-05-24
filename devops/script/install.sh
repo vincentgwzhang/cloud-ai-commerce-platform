@@ -48,6 +48,11 @@ export MINIKUBE_SKIP_UNINSTALL=1
 "${SCRIPT_ROOT}/InventoryService/minikube-deploy.sh"
 
 echo ""
+echo "==> Step 4: deploy OrderService"
+export MINIKUBE_SKIP_UNINSTALL=1
+"${SCRIPT_ROOT}/OrderService/minikube-deploy.sh"
+
+echo ""
 echo "========================================"
 echo "  Install complete"
 echo "========================================"
@@ -57,5 +62,9 @@ echo "  Product:   minikube service product-service --url"
 echo "             kubectl port-forward svc/product-service 8081:80"
 echo "  Inventory: minikube service inventory-service --url"
 echo "             kubectl port-forward svc/inventory-service 8082:80"
+echo "  Order:     minikube service order-service --url"
+echo "             kubectl port-forward svc/order-service 8083:80"
+echo ""
+echo "  Kafka:     localhost:9092 (devops/script/docker-compose-app.yml)"
 echo ""
 echo "  Teardown: ${SCRIPT_ROOT}/uninstall.sh"

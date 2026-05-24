@@ -1,7 +1,6 @@
 package com.vincent.productservice.cache;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.json.JsonMapper;
 import com.vincent.productservice.config.ProductCacheProperties;
 import com.vincent.productservice.dto.ProductResponse;
 import com.vincent.productservice.entity.Product;
@@ -57,7 +56,7 @@ class ProductCacheServiceTest {
                 "product:",
                 List.of(1L, 2L, 3L)
         );
-        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
         productCacheService = new ProductCacheService(
                 redisTemplate,
                 mapper,
@@ -70,7 +69,7 @@ class ProductCacheServiceTest {
     @Test
     void getByIdReturnsCachedValueOnHit() throws Exception {
         ProductResponse response = sampleResponse();
-        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
         when(valueOperations.get("product:1")).thenReturn(mapper.writeValueAsString(response));
 
         ProductResponse result = productCacheService.getById(1L);
@@ -105,7 +104,7 @@ class ProductCacheServiceTest {
     @Test
     void getByIdReturnsPeerLoadedCacheWhenLockNotAcquired() throws Exception {
         ProductResponse response = sampleResponse();
-        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
         String json = mapper.writeValueAsString(response);
         when(valueOperations.get("product:1")).thenReturn(null, null, json);
         when(cacheLock.tryAcquire("product:1:lock")).thenReturn(null);
@@ -119,7 +118,7 @@ class ProductCacheServiceTest {
     @Test
     void getByIdUsesDoubleCheckedCacheAfterLock() throws Exception {
         ProductResponse response = ProductResponse.from(sampleEntity(2L));
-        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
         when(valueOperations.get("product:2"))
                 .thenReturn(null)
                 .thenReturn(mapper.writeValueAsString(response));

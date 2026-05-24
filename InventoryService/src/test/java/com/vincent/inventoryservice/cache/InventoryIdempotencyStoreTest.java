@@ -1,7 +1,6 @@
 package com.vincent.inventoryservice.cache;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.json.JsonMapper;
 import com.vincent.inventoryservice.config.InventoryProperties;
 import com.vincent.inventoryservice.dto.InventoryResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,12 +29,12 @@ class InventoryIdempotencyStoreTest {
     private ValueOperations<String, String> valueOperations;
 
     private InventoryIdempotencyStore store;
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        jsonMapper = JsonMapper.builder().findAndAddModules().build();
         InventoryProperties properties = new InventoryProperties(
                 "inv:",
                 Duration.ofMinutes(5),
@@ -44,14 +43,14 @@ class InventoryIdempotencyStoreTest {
                 "lock:",
                 Duration.ofSeconds(10)
         );
-        store = new InventoryIdempotencyStore(redisTemplate, objectMapper, properties);
+        store = new InventoryIdempotencyStore(redisTemplate, jsonMapper, properties);
     }
 
     @Test
     void findPreviousResultReturnsDeserializedPayload() throws Exception {
         InventoryResponse response = new InventoryResponse("IPHONE17", 90, 10, 1L);
         when(valueOperations.get("test:id:req-1"))
-                .thenReturn(objectMapper.writeValueAsString(response));
+                .thenReturn(jsonMapper.writeValueAsString(response));
 
         Optional<InventoryResponse> found = store.findPreviousResult("req-1");
 
@@ -78,7 +77,7 @@ class InventoryIdempotencyStoreTest {
         store.saveResult("req-3", response);
         verify(valueOperations).set(
                 eq("test:id:req-3"),
-                eq(objectMapper.writeValueAsString(response)),
+                eq(jsonMapper.writeValueAsString(response)),
                 any(Duration.class)
         );
     }

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: order-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: order-service-config
+            - secretRef:
+                name: auth-service-secret
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /api/orders/health
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/orders/health
+              port: 8083
+            initialDelaySeconds: 50
+            periodSeconds: 20
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: auth-service-jwt-keys

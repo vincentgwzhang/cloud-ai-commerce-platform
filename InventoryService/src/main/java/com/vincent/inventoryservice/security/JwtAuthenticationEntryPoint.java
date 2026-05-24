@@ -1,6 +1,6 @@
 package com.vincent.inventoryservice.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.vincent.inventoryservice.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,10 +15,10 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
-    public JwtAuthenticationEntryPoint(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public JwtAuthenticationEntryPoint(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
     }
 
     @Override
@@ -29,6 +29,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     ) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getOutputStream(), ApiResponse.fail("Invalid or expired token"));
+        jsonMapper.writeValue(response.getOutputStream(), ApiResponse.fail("Invalid or expired token"));
     }
 }

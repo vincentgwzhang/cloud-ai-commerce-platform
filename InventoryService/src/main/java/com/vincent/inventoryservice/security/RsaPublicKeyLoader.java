@@ -19,10 +19,6 @@ import java.util.List;
 @Component
 public class RsaPublicKeyLoader {
 
-    private static final List<String> LOCAL_FALLBACKS = List.of(
-            "file:../devops/data/keys/public.pem"
-    );
-
     private final ResourceLoader resourceLoader;
     private final JwtProperties jwtProperties;
 
@@ -43,7 +39,7 @@ public class RsaPublicKeyLoader {
         }
         List<String> tried = new ArrayList<>();
         tried.add(configured);
-        for (String fallback : LOCAL_FALLBACKS) {
+        for (String fallback : jwtProperties.publicKeyFallbackPaths()) {
             if (fallback.equals(configured)) {
                 continue;
             }
@@ -56,6 +52,7 @@ public class RsaPublicKeyLoader {
                 JWT public key not found. Tried: %s
                 From working directory: %s
                 Fix: run devops/script/local-dev-setup.sh
+                Or set JWT_PUBLIC_KEY_PATH / app.jwt.public-key-path to a valid file location.
                 """.formatted(tried, Path.of("").toAbsolutePath()));
     }
 

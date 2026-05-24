@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:order_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/test-schema.sql
+  kafka:
+    listener:
+      auto-startup: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+app:
+  jwt:
+    issuer: auth-service-test
+    public-key-path: classpath:keys/public.pem
+  kafka:
+    max-retries: 1
+    retry-interval-ms: 100
+    topics:
+      order-created: order-created
+      order-confirmed: order-confirmed
+      order-failed: order-failed
+      inventory-reserved: inventory-reserved
+      inventory-failed: inventory-failed
+      order-dlq: order-dlq
+  order:
+    cache:
+      idempotency-prefix: "test:order:idempotency:"
+      idempotency-ttl: PT1H
+      order-cache-prefix: "test:order:detail:"
+      order-cache-ttl: PT5M

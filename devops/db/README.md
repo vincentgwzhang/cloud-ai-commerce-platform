@@ -5,7 +5,7 @@ SQL files for the **host OS MySQL** instance (`commerce_platform` database).
 
 | File | Purpose |
 |------|---------|
-| [init.sql](init.sql) | `users`, `refresh_tokens`, `products`, `inventory` tables + seed data (users password `123456`) |
+| [init.sql](init.sql) | `users`, `refresh_tokens`, `products`, `inventory`, `orders` tables + seed data (users password `123456`) |
 | [grant-mysql-docker-access.sql](grant-mysql-docker-access.sql) | `vincent@%` for Docker / Minikube / remote clients |
 | [update-user-passwords.sql](update-user-passwords.sql) | Re-hash sample user passwords |
 

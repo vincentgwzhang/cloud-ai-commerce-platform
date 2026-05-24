@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:host.docker.internal}:${DB_PORT:3306}/${DB_NAME:commerce_platform}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+  data:
+    redis:
+      host: ${REDIS_HOST:host.docker.internal}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:host.docker.internal:9092}

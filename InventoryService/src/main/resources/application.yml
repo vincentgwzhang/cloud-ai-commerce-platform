@@ -31,6 +31,9 @@ app:
   jwt:
     issuer: ${JWT_ISSUER:auth-service}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:file:../devops/data/keys/public.pem}
+    public-key-fallback-paths:
+      - file:devops/data/keys/public.pem
+      - file:../devops/data/keys/public.pem
   inventory:
     cache-key-prefix: "inventory:product:"
     cache-ttl: PT30M

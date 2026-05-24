@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   kafka:
-    image: apache/kafka:4.1.2
+    image: apache/kafka:4.3.0
     container_name: kafka
     hostname: kafka
     ports:

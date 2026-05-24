@@ -1,0 +1,10 @@
+spring:
+  config:
+    activate:
+      on-profile: k8s
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:host.minikube.internal:9092}

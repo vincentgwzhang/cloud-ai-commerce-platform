@@ -1,6 +1,6 @@
 package com.vincent.productservice.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.vincent.productservice.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,10 +16,10 @@ import java.time.Instant;
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
-    public JwtAuthenticationEntryPoint(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public JwtAuthenticationEntryPoint(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
     }
 
     @Override
@@ -37,6 +37,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         );
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getOutputStream(), body);
+        jsonMapper.writeValue(response.getOutputStream(), body);
     }
 }

@@ -1,7 +1,6 @@
 package com.vincent.inventoryservice.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
@@ -30,7 +29,7 @@ class JwtAuthenticationEntryPointTest {
         when(response.getOutputStream()).thenReturn(new DelegatingServletOutputStream(body));
 
         JwtAuthenticationEntryPoint entryPoint = new JwtAuthenticationEntryPoint(
-                new ObjectMapper().registerModule(new JavaTimeModule())
+                JsonMapper.builder().findAndAddModules().build()
         );
         entryPoint.commence(request, response, new BadCredentialsException("bad"));
 

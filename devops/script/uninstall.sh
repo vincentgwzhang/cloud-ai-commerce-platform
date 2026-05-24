@@ -13,6 +13,7 @@ echo "========================================"
 echo "  Minikube uninstall (all services)"
 echo "========================================"
 
+"${SCRIPT_ROOT}/OrderService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/InventoryService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/ProductService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/AuthService/minikube-uninstall.sh"

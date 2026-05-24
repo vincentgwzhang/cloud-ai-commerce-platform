@@ -1,3 +1,5 @@
+create database commerce_platform;
+
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -108,3 +110,16 @@ VALUES
     ('RTX5090', 20, 0, 0),
     ('PS6', 50, 0, 0)
 ON DUPLICATE KEY UPDATE product_code = product_code;
+
+CREATE TABLE IF NOT EXISTS orders (
+    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
+    order_no     VARCHAR(64)  NOT NULL UNIQUE,
+    product_code VARCHAR(64)  NOT NULL,
+    quantity     INT          NOT NULL,
+    amount       DECIMAL(12, 2) NOT NULL,
+    status       VARCHAR(32)  NOT NULL,
+    request_id   VARCHAR(64)  NOT NULL UNIQUE,
+    created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_orders_status (status)
+);

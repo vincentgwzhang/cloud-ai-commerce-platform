@@ -61,6 +61,21 @@
       "type": "string"
     },
     {
+      "key": "orderServiceBaseUrl",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "orderRequestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastOrderNo",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "accessToken",
       "value": "",
       "type": "string"
@@ -626,6 +641,105 @@
               "path": ["api", "inventory", "{{inventoryProductCode}}"]
             },
             "description": "Strips Authorization. Expected HTTP 401."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Order Service",
+      "description": "Port **8083**. Kafka required (`localhost:9092`). Run **Login** first.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/orders/health",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["api", "orders", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('orderRequestId', requestId);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const orderNo = pm.response.json().data.orderNo;",
+                  "    pm.collectionVariables.set('lastOrderNo', orderNo);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"IPHONE17\",\n  \"quantity\": 1,\n  \"requestId\": \"{{orderRequestId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/orders",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/orders/{{lastOrderNo}}",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["api", "orders", "{{lastOrderNo}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/orders/status/{{lastOrderNo}}",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["api", "orders", "status", "{{lastOrderNo}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/orders/{{lastOrderNo}}/cancel",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["api", "orders", "{{lastOrderNo}}", "cancel"]
+            }
           },
           "response": []
         }
