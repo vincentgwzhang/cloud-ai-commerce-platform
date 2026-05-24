@@ -43,12 +43,19 @@ export MINIKUBE_SKIP_UNINSTALL=1
 "${SCRIPT_ROOT}/ProductService/minikube-deploy.sh"
 
 echo ""
+echo "==> Step 3: deploy InventoryService"
+export MINIKUBE_SKIP_UNINSTALL=1
+"${SCRIPT_ROOT}/InventoryService/minikube-deploy.sh"
+
+echo ""
 echo "========================================"
 echo "  Install complete"
 echo "========================================"
-echo "  Auth:    minikube service auth-service --url"
-echo "           kubectl port-forward svc/auth-service 8080:80"
-echo "  Product: minikube service product-service --url"
-echo "           kubectl port-forward svc/product-service 8081:80"
+echo "  Auth:      minikube service auth-service --url"
+echo "             kubectl port-forward svc/auth-service 8080:80"
+echo "  Product:   minikube service product-service --url"
+echo "             kubectl port-forward svc/product-service 8081:80"
+echo "  Inventory: minikube service inventory-service --url"
+echo "             kubectl port-forward svc/inventory-service 8082:80"
 echo ""
 echo "  Teardown: ${SCRIPT_ROOT}/uninstall.sh"

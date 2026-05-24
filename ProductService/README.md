@@ -28,7 +28,7 @@ mysql -u vincent -p commerce_platform < ../devops/db/init.sql
 docker run -d --name redis -p 6379:6379 redis:7-alpine
 ```
 
-Flyway creates `products` and seed data on first startup (`V1__init_product.sql`).
+`products` table and seed data: `devops/db/init.sql` (run before starting services).
 
 **IntelliJ:** profile `local` uses `devops/data/keys/public.pem`. Run **ProductService [local]** with working dir `ProductService/`.
 

@@ -21,6 +21,7 @@
     <modules>
         <module>AuthService</module>
         <module>ProductService</module>
+        <module>InventoryService</module>
     </modules>
 
     <properties>

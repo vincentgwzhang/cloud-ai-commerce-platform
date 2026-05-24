@@ -49,7 +49,7 @@ chmod +x devops/script/local-dev-setup.sh
 ./devops/script/local-dev-setup.sh
 ```
 
-MySQL: `devops/db/init.sql` on database `commerce_platform`. Redis on `localhost:6379`. Product rows: Flyway runs when ProductService starts.
+MySQL: `devops/db/init.sql` on database `commerce_platform` (users, products, inventory). Redis on `localhost:6379`.
 
 ### Start order in IntelliJ
 
@@ -94,11 +94,12 @@ Import at repository root:
 
 | File | Purpose |
 |------|---------|
-| [postman/cloud-ai-commerce-platform.postman_collection.json](postman/cloud-ai-commerce-platform.postman_collection.json) | Collection with **Auth Service** folder and REST endpoints |
-| [postman/cloud-ai-commerce-platform.local.postman_environment.json](postman/cloud-ai-commerce-platform.local.postman_environment.json) | Optional local variables (`authServiceBaseUrl`, `productServiceBaseUrl`, `accessToken`, `refreshToken`) |
+| [postman/cloud-ai-commerce-platform.postman_collection.json](postman/cloud-ai-commerce-platform.postman_collection.json) | **Auth**, **Product**, **Inventory** folders |
+| [postman/cloud-ai-commerce-platform.local.postman_environment.json](postman/cloud-ai-commerce-platform.local.postman_environment.json) | Local URLs (8080/8081/8082), tokens, `inventoryProductCode` |
 
 1. Postman → **Import** → select both files from `postman/` (or collection only).
 2. Select environment **Cloud AI Commerce Platform - Local**.
-3. Start **AuthService**, run **Auth Service → Login** — saves `accessToken` (Bearer on all requests) and `refreshToken`.
-4. Start **ProductService** (8081), run **Product Service → List Products** (uses same JWT).
-5. When the JWT expires (~1 h), run **Auth Service → Refresh Token** — updates both tokens.
+3. Start **AuthService**, run **Auth Service → Login** — saves `accessToken` (Bearer on protected routes) and `refreshToken`.
+4. Start **ProductService** (8081), run **Product Service → List Products**.
+5. Start **InventoryService** (8082), run **Inventory Service → Get Inventory** (seed SKU `IPHONE17`).
+6. When the JWT expires (~1 h), run **Auth Service → Refresh Token** — updates both tokens.

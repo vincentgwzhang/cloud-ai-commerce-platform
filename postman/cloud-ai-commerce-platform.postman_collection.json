@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "Cloud AI Commerce Platform",
-    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service → Login** — saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** — when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product Service** — run **Login** first; collection script sends `Authorization: Bearer {{accessToken}}` on all requests.\n\n## Authorization header\n\nCollection pre-request script adds Bearer when `accessToken` exists. Public routes ignore it. **Validate Token (missing token)** and **List Products (missing token)** strip Authorization on purpose.\n\nRe-import after collection updates.",
+    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service → Login** — saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** — when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product / Inventory** — run **Login** first; collection script sends `Authorization: Bearer {{accessToken}}` on protected routes.\n\n## Services (local defaults)\n\n| Variable | Port |\n|----------|------|\n| `authServiceBaseUrl` | 8080 |\n| `productServiceBaseUrl` | 8081 |\n| `inventoryServiceBaseUrl` | 8082 |\n\n## Inventory product codes (seed)\n\n`IPHONE17`, `RTX5090`, `PS6` — see `devops/db/init.sql` (catalog uses `IPHONE-17` etc. in ProductService).\n\nRe-import after collection updates.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -43,6 +43,21 @@
     {
       "key": "productServiceBaseUrl",
       "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "inventoryServiceBaseUrl",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "inventoryProductCode",
+      "value": "IPHONE17",
+      "type": "string"
+    },
+    {
+      "key": "inventoryRequestId",
+      "value": "",
       "type": "string"
     },
     {
@@ -365,6 +380,252 @@
               "path": ["api", "v1", "products"]
             },
             "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inventory Service",
+      "description": "Port **8082**. Requires JWT except **Health** and **Concurrent Reserve Demo**.\n\nRun **Auth Service → Login** first. Seed SKUs: `IPHONE17` (100), `RTX5090` (20), `PS6` (50).\n\nUse a unique `requestId` per mutation; **Reserve (idempotent retry)** reuses `{{inventoryRequestId}}`.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/health",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "health"]
+            },
+            "description": "Public. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Inventory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "{{inventoryProductCode}}"]
+            },
+            "description": "Requires JWT. Set `inventoryProductCode` (default `IPHONE17`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Reserve Stock",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('inventoryRequestId', requestId);",
+                  "if (pm.environment) {",
+                  "    pm.environment.set('inventoryRequestId', requestId);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('reserve succeeded', function () {",
+                  "        pm.expect(pm.response.json().success).to.eql(true);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/reserve",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "reserve"]
+            },
+            "description": "Reserves stock (available → reserved). Saves `inventoryRequestId` for idempotency demo."
+          },
+          "response": []
+        },
+        {
+          "name": "Reserve (idempotent retry)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/reserve",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "reserve"]
+            },
+            "description": "Run after **Reserve Stock** with the same `inventoryRequestId`. Should return the same result without double-reserving."
+          },
+          "response": []
+        },
+        {
+          "name": "Release Stock",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('inventoryRequestId', requestId);",
+                  "if (pm.environment) {",
+                  "    pm.environment.set('inventoryRequestId', requestId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/release",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "release"]
+            },
+            "description": "Moves quantity from reserved back to available. Use after **Reserve Stock**."
+          },
+          "response": []
+        },
+        {
+          "name": "Deduct Stock",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('inventoryRequestId', requestId);",
+                  "if (pm.environment) {",
+                  "    pm.environment.set('inventoryRequestId', requestId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/deduct",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "deduct"]
+            },
+            "description": "Consumes reserved stock (e.g. after payment). Reserve first, then deduct."
+          },
+          "response": []
+        },
+        {
+          "name": "Concurrent Reserve Demo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"RTX5090\",\n  \"concurrentRequests\": 30,\n  \"quantityPerRequest\": 1\n}"
+            },
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/demo/concurrent-reserve",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "demo", "concurrent-reserve"]
+            },
+            "description": "Public stress demo (no JWT). RTX5090 seed stock = 20; expect successes ≤ 20."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Inventory (missing token)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
+              "host": ["{{inventoryServiceBaseUrl}}"],
+              "path": ["api", "inventory", "{{inventoryProductCode}}"]
+            },
+            "description": "Strips Authorization. Expected HTTP 401."
           },
           "response": []
         }
