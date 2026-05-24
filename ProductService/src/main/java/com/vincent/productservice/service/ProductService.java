@@ -45,10 +45,14 @@ public class ProductService {
         if (hotIds == null || hotIds.isEmpty()) {
             return List.of();
         }
-        return productRepository.findByIdInOrderByIdAsc(hotIds).stream()
-                .filter(product -> product.getStatus() == ProductStatus.ACTIVE)
-                .map(ProductResponse::from)
-                .toList();
+        return productCacheService.getHotList().orElseGet(() -> {
+            List<ProductResponse> loaded = productRepository.findByIdInOrderByIdAsc(hotIds).stream()
+                    .filter(product -> product.getStatus() == ProductStatus.ACTIVE)
+                    .map(ProductResponse::from)
+                    .toList();
+            productCacheService.putHotList(loaded);
+            return loaded;
+        });
     }
 
     public void warmCache(Product product) {

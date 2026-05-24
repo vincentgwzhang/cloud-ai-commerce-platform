@@ -36,38 +36,38 @@ class InventoryRedisCacheTest {
     void setUp() {
         org.mockito.Mockito.lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         InventoryProperties properties = new InventoryProperties(
-                "test:inv:",
                 Duration.ofMinutes(5),
-                "test:id:",
                 Duration.ofHours(1),
-                "test:lock:",
-                Duration.ofSeconds(10)
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(30),
+                0,
+                List.of("IPHONE17")
         );
         cache = new InventoryRedisCache(redisTemplate, decrementStockScript, properties);
     }
 
     @Test
     void getAvailableReturnsEmptyOnMiss() {
-        when(valueOperations.get("test:inv:IPHONE17")).thenReturn(null);
+        when(valueOperations.get("inventory:product:IPHONE17")).thenReturn(null);
         assertThat(cache.getAvailable("IPHONE17")).isEmpty();
     }
 
     @Test
     void putAndGetAvailable() {
         cache.putAvailable("IPHONE17", 42);
-        verify(valueOperations).set(eq("test:inv:IPHONE17"), eq("42"), any(Duration.class));
+        verify(valueOperations).set(eq("inventory:product:IPHONE17"), eq("42"), any(Duration.class));
 
-        when(valueOperations.get("test:inv:IPHONE17")).thenReturn("42");
+        when(valueOperations.get("inventory:product:IPHONE17")).thenReturn("42");
         assertThat(cache.getAvailable("IPHONE17")).contains(42);
     }
 
     @Test
     void tryAtomicDecrementInterpretsScriptResult() {
-        when(redisTemplate.execute(eq(decrementStockScript), eq(List.of("test:inv:RTX5090")), eq("1")))
+        when(redisTemplate.execute(eq(decrementStockScript), eq(List.of("inventory:product:RTX5090")), eq("1")))
                 .thenReturn(19L);
         assertThat(cache.tryAtomicDecrement("RTX5090", 1)).contains(19);
 
-        when(redisTemplate.execute(eq(decrementStockScript), eq(List.of("test:inv:RTX5090")), eq("1")))
+        when(redisTemplate.execute(eq(decrementStockScript), eq(List.of("inventory:product:RTX5090")), eq("1")))
                 .thenReturn(-1L);
         assertThat(cache.tryAtomicDecrement("RTX5090", 1)).contains(-1);
     }
@@ -75,12 +75,12 @@ class InventoryRedisCacheTest {
     @Test
     void incrementAvailableIncrementsKey() {
         cache.incrementAvailable("PS6", 3);
-        verify(valueOperations).increment("test:inv:PS6", 3);
+        verify(valueOperations).increment("inventory:product:PS6", 3);
     }
 
     @Test
     void evictDeletesKey() {
         cache.evict("PS6");
-        verify(redisTemplate).delete("test:inv:PS6");
+        verify(redisTemplate).delete("inventory:product:PS6");
     }
 }

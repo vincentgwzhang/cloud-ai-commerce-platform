@@ -14,77 +14,142 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * Cache-aside for product detail with SETNX lock on cache miss (anti cache breakdown).
+ * Cache-aside for product detail with SETNX lock on miss (anti cache breakdown / thundering herd).
+ *
+ * <p>Null-result short TTL blocks cache penetration on invalid IDs.
  */
 @Service
 public class ProductCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductCacheService.class);
+    private static final String NULL_MARKER = "1";
 
     private final StringRedisTemplate redisTemplate;
     private final JsonMapper jsonMapper;
     private final ProductRepository productRepository;
     private final ProductCacheLock cacheLock;
-    private final String keyPrefix;
-    private final Duration ttl;
+    private final LocalHotProductCache localHotCache;
+    private final ProductCacheMetrics cacheMetrics;
+    private final Duration detailTtl;
+    private final Duration hotTtl;
+    private final Duration nullCacheTtl;
+    private final int ttlJitterMaxSeconds;
+    private final List<Long> hotProductIds;
 
     public ProductCacheService(
             StringRedisTemplate redisTemplate,
             JsonMapper jsonMapper,
             ProductRepository productRepository,
             ProductCacheLock cacheLock,
+            LocalHotProductCache localHotCache,
+            ProductCacheMetrics cacheMetrics,
             ProductCacheProperties cacheProperties
     ) {
         this.redisTemplate = redisTemplate;
         this.jsonMapper = jsonMapper;
         this.productRepository = productRepository;
         this.cacheLock = cacheLock;
-        this.keyPrefix = cacheProperties.keyPrefix();
-        this.ttl = cacheProperties.ttl();
+        this.localHotCache = localHotCache;
+        this.cacheMetrics = cacheMetrics;
+        this.detailTtl = cacheProperties.detailTtl();
+        this.hotTtl = cacheProperties.hotTtl();
+        this.nullCacheTtl = cacheProperties.nullCacheTtl();
+        this.ttlJitterMaxSeconds = cacheProperties.ttlJitterMaxSeconds();
+        this.hotProductIds = cacheProperties.hotProductIds();
     }
 
     public ProductResponse getById(Long id) {
-        String cacheKey = cacheKey(id);
-
-        Optional<ProductResponse> cached = readCache(cacheKey);
-        if (cached.isPresent()) {
-            log.debug("Cache hit for product id={}", id);
-            return cached.get();
+        if (isHotProduct(id)) {
+            Optional<ProductResponse> local = localHotCache.get(id);
+            if (local.isPresent()) {
+                cacheMetrics.recordHit();
+                log.debug("Local hot cache hit product id={}", id);
+                return local.get();
+            }
         }
 
-        String lockKey = cacheKey + ":lock";
+        String cacheKey = ProductRedisKeys.detail(id);
+        Optional<String> cachedJson = readRaw(cacheKey);
+        if (cachedJson.isPresent()) {
+            cacheMetrics.recordHit();
+            log.debug("Redis cache hit product id={}", id);
+            return deserialize(cacheKey, cachedJson.get());
+        }
+
+        String notFoundKey = ProductRedisKeys.notFound(id);
+        if (readRaw(notFoundKey).isPresent()) {
+            cacheMetrics.recordHit();
+            log.debug("Null-cache hit (penetration guard) product id={}", id);
+            throw new ProductNotFoundException(id);
+        }
+
+        cacheMetrics.recordMiss();
+        String lockKey = ProductRedisKeys.detailLock(id);
         String lockToken = cacheLock.tryAcquire(lockKey);
         if (lockToken == null) {
             log.debug("Cache miss, waiting for lock holder product id={}", id);
-            return waitForPeerLoad(cacheKey, () -> loadFromDatabase(id));
+            return waitForPeerLoad(id, () -> loadFromDatabase(id));
         }
 
         try {
-            cached = readCache(cacheKey);
-            if (cached.isPresent()) {
-                return cached.get();
+            cachedJson = readRaw(cacheKey);
+            if (cachedJson.isPresent()) {
+                return deserialize(cacheKey, cachedJson.get());
+            }
+            if (readRaw(notFoundKey).isPresent()) {
+                throw new ProductNotFoundException(id);
             }
             ProductResponse loaded = loadFromDatabase(id);
-            writeCache(cacheKey, loaded);
+            writeDetail(cacheKey, loaded);
+            rememberHot(id, loaded);
             return loaded;
+        } catch (ProductNotFoundException ex) {
+            writeNullMarker(notFoundKey);
+            throw ex;
         } finally {
             cacheLock.release(lockKey, lockToken);
         }
     }
 
     public void put(ProductResponse product) {
-        writeCache(cacheKey(product.id()), product);
+        writeDetail(ProductRedisKeys.detail(product.id()), product);
+        rememberHot(product.id(), product);
     }
 
-    private ProductResponse waitForPeerLoad(String cacheKey, Supplier<ProductResponse> fallback) {
+    public Optional<List<ProductResponse>> getHotList() {
+        return readRaw(ProductRedisKeys.HOT_LIST).map(this::deserializeHotList);
+    }
+
+    public void putHotList(List<ProductResponse> products) {
+        Duration ttl = RedisTtlJitter.apply(hotTtl, ttlJitterMaxSeconds);
+        RedisSafeExecutor.run(() -> {
+            try {
+                redisTemplate.opsForValue().set(
+                        ProductRedisKeys.HOT_LIST,
+                        jsonMapper.writeValueAsString(products),
+                        ttl
+                );
+            } catch (JacksonException ex) {
+                throw new IllegalStateException("Failed to serialize hot list", ex);
+            }
+        });
+    }
+
+    private ProductResponse waitForPeerLoad(Long id, Supplier<ProductResponse> fallback) {
+        String cacheKey = ProductRedisKeys.detail(id);
+        String notFoundKey = ProductRedisKeys.notFound(id);
         for (int attempt = 0; attempt < 5; attempt++) {
-            Optional<ProductResponse> cached = readCache(cacheKey);
+            Optional<String> cached = readRaw(cacheKey);
             if (cached.isPresent()) {
-                return cached.get();
+                return deserialize(cacheKey, cached.get());
+            }
+            if (readRaw(notFoundKey).isPresent()) {
+                throw new ProductNotFoundException(id);
             }
             try {
                 Thread.sleep(50L * (attempt + 1));
@@ -103,29 +168,58 @@ public class ProductCacheService {
         return ProductResponse.from(product);
     }
 
-    private Optional<ProductResponse> readCache(String cacheKey) {
-        String json = redisTemplate.opsForValue().get(cacheKey);
-        if (json == null || json.isBlank()) {
-            return Optional.empty();
-        }
+    private Optional<String> readRaw(String key) {
+        return RedisSafeExecutor.optional(() -> redisTemplate.opsForValue().get(key));
+    }
+
+    private ProductResponse deserialize(String cacheKey, String json) {
         try {
-            return Optional.of(jsonMapper.readValue(json, ProductResponse.class));
+            return jsonMapper.readValue(json, ProductResponse.class);
         } catch (JacksonException ex) {
             log.warn("Invalid cache payload for key={}, evicting", cacheKey);
-            redisTemplate.delete(cacheKey);
-            return Optional.empty();
+            RedisSafeExecutor.run(() -> redisTemplate.delete(cacheKey));
+            throw new IllegalStateException("Invalid cache payload", ex);
         }
     }
 
-    private void writeCache(String cacheKey, ProductResponse product) {
+    private List<ProductResponse> deserializeHotList(String json) {
         try {
-            redisTemplate.opsForValue().set(cacheKey, jsonMapper.writeValueAsString(product), ttl);
+            return jsonMapper.readValue(
+                    json,
+                    jsonMapper.getTypeFactory().constructCollectionType(List.class, ProductResponse.class)
+            );
         } catch (JacksonException ex) {
-            throw new IllegalStateException("Failed to serialize product cache", ex);
+            throw new IllegalStateException("Invalid hot list cache", ex);
         }
     }
 
-    private String cacheKey(Long id) {
-        return keyPrefix + id;
+    private void writeDetail(String cacheKey, ProductResponse product) {
+        Duration ttl = RedisTtlJitter.apply(resolveTtl(product.id()), ttlJitterMaxSeconds);
+        RedisSafeExecutor.run(() -> {
+            try {
+                redisTemplate.opsForValue().set(cacheKey, jsonMapper.writeValueAsString(product), ttl);
+            } catch (JacksonException ex) {
+                throw new IllegalStateException("Failed to serialize product cache", ex);
+            }
+        });
+    }
+
+    private void writeNullMarker(String notFoundKey) {
+        Duration ttl = RedisTtlJitter.apply(nullCacheTtl, ttlJitterMaxSeconds);
+        RedisSafeExecutor.run(() -> redisTemplate.opsForValue().set(notFoundKey, NULL_MARKER, ttl));
+    }
+
+    private Duration resolveTtl(Long id) {
+        return isHotProduct(id) ? hotTtl : detailTtl;
+    }
+
+    private boolean isHotProduct(Long id) {
+        return hotProductIds != null && hotProductIds.contains(id);
+    }
+
+    private void rememberHot(Long id, ProductResponse response) {
+        if (isHotProduct(id)) {
+            localHotCache.put(id, response);
+        }
     }
 }

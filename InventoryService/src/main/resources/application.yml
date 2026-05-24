@@ -23,6 +23,16 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: inventory-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 server:
   port: ${SERVER_PORT:8082}
@@ -35,12 +45,23 @@ app:
       - file:devops/data/keys/public.pem
       - file:../devops/data/keys/public.pem
   inventory:
-    cache-key-prefix: "inventory:product:"
     cache-ttl: PT30M
-    idempotency-prefix: "inventory:idempotency:"
     idempotency-ttl: PT24H
-    lock-prefix: "inventory:lock:"
     lock-ttl: PT10S
+    local-cache-ttl: PT30S
+    ttl-jitter-max-seconds: 60
+    hot-product-codes:
+      - IPHONE17
+      - RTX5090
+      - PS6
+  kafka:
+    max-retries: 3
+    retry-interval-ms: 1000
+    topics:
+      order-created: order-created
+      inventory-reserved: inventory-reserved
+      inventory-failed: inventory-failed
+      inventory-dlq: inventory-dlq
 
 management:
   endpoints:

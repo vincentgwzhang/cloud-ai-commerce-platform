@@ -1,7 +1,11 @@
 package com.vincent.inventoryservice.service;
 
+import com.vincent.inventoryservice.cache.InventoryCacheConsistency;
 import com.vincent.inventoryservice.cache.InventoryIdempotencyStore;
+import com.vincent.inventoryservice.cache.InventoryQueryCache;
 import com.vincent.inventoryservice.cache.InventoryRedisCache;
+import com.vincent.inventoryservice.cache.LocalHotInventoryCache;
+import com.vincent.inventoryservice.config.InventoryProperties;
 import com.vincent.inventoryservice.dto.InventoryResponse;
 import com.vincent.inventoryservice.entity.Inventory;
 import com.vincent.inventoryservice.exception.InsufficientInventoryException;
@@ -39,6 +43,14 @@ class InventoryServiceTest {
     @Mock
     private InventoryDistributedLock distributedLock;
     @Mock
+    private InventoryQueryCache inventoryQueryCache;
+    @Mock
+    private InventoryCacheConsistency cacheConsistency;
+    @Mock
+    private LocalHotInventoryCache localHotInventoryCache;
+    @Mock
+    private InventoryProperties inventoryProperties;
+    @Mock
     private InventoryMetrics metrics;
 
     @InjectMocks
@@ -46,9 +58,8 @@ class InventoryServiceTest {
 
     @Test
     void getInventoryReturnsData() {
-        Inventory inventory = sample("IPHONE17", 10, 2);
-        when(inventoryRepository.findByProductCode("IPHONE17")).thenReturn(Optional.of(inventory));
-        when(inventoryRedisCache.getAvailable("IPHONE17")).thenReturn(Optional.of(10));
+        var cached = new InventoryResponse("IPHONE17", 10, 2, 1L);
+        when(inventoryQueryCache.get(eq("IPHONE17"), any())).thenReturn(cached);
 
         var response = inventoryService.getInventory("IPHONE17");
 
@@ -58,6 +69,10 @@ class InventoryServiceTest {
 
     @Test
     void getInventoryThrowsWhenMissing() {
+        when(inventoryQueryCache.get(eq("UNKNOWN"), any())).thenAnswer(invocation -> {
+            java.util.function.Supplier<InventoryResponse> loader = invocation.getArgument(1);
+            return loader.get();
+        });
         when(inventoryRepository.findByProductCode("UNKNOWN")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> inventoryService.getInventory("UNKNOWN"))
                 .isInstanceOf(InventoryNotFoundException.class);

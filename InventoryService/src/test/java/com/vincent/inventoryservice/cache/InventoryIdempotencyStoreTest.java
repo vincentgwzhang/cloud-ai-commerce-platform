@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,6 +28,8 @@ class InventoryIdempotencyStoreTest {
     private StringRedisTemplate redisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
+    @Mock
+    private InventoryCacheMetrics cacheMetrics;
 
     private InventoryIdempotencyStore store;
     private JsonMapper jsonMapper;
@@ -36,39 +39,40 @@ class InventoryIdempotencyStoreTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         jsonMapper = JsonMapper.builder().findAndAddModules().build();
         InventoryProperties properties = new InventoryProperties(
-                "inv:",
                 Duration.ofMinutes(5),
-                "test:id:",
                 Duration.ofHours(1),
-                "lock:",
-                Duration.ofSeconds(10)
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(30),
+                0,
+                List.of("IPHONE17")
         );
-        store = new InventoryIdempotencyStore(redisTemplate, jsonMapper, properties);
+        store = new InventoryIdempotencyStore(redisTemplate, jsonMapper, cacheMetrics, properties);
     }
 
     @Test
     void findPreviousResultReturnsDeserializedPayload() throws Exception {
         InventoryResponse response = new InventoryResponse("IPHONE17", 90, 10, 1L);
-        when(valueOperations.get("test:id:req-1"))
+        when(valueOperations.get("inventory:request:req-1"))
                 .thenReturn(jsonMapper.writeValueAsString(response));
 
         Optional<InventoryResponse> found = store.findPreviousResult("req-1");
 
         assertThat(found).contains(response);
+        verify(cacheMetrics).recordIdempotencyDuplicate();
     }
 
     @Test
     void tryClaimUsesSetIfAbsent() {
-        when(valueOperations.setIfAbsent(eq("test:id:req-2"), eq("PROCESSING"), any(Duration.class)))
+        when(valueOperations.setIfAbsent(eq("inventory:request:req-2"), eq("PROCESSING"), any(Duration.class)))
                 .thenReturn(true);
         assertThat(store.tryClaim("req-2")).isTrue();
     }
 
     @Test
     void findPreviousResultClearsCorruptPayload() {
-        when(valueOperations.get("test:id:bad")).thenReturn("{not-json");
+        when(valueOperations.get("inventory:request:bad")).thenReturn("{not-json");
         assertThat(store.findPreviousResult("bad")).isEmpty();
-        verify(redisTemplate).delete("test:id:bad");
+        verify(redisTemplate).delete("inventory:request:bad");
     }
 
     @Test
@@ -76,7 +80,7 @@ class InventoryIdempotencyStoreTest {
         InventoryResponse response = new InventoryResponse("PS6", 40, 10, 2L);
         store.saveResult("req-3", response);
         verify(valueOperations).set(
-                eq("test:id:req-3"),
+                eq("inventory:request:req-3"),
                 eq(jsonMapper.writeValueAsString(response)),
                 any(Duration.class)
         );

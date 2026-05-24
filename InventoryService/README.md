@@ -4,6 +4,14 @@ Distributed inventory demo: reservation, anti-overselling, Redis atomic ops, ide
 
 Port **8082**. JWT aligned with AuthService (`devops/data/keys/public.pem`).
 
+## Kafka (Phase 1)
+
+Consumes `order-created`, reserves stock via existing `reserve()`, publishes `inventory-reserved` or `inventory-failed`.
+
+See [devops/docs/kafka-event-driven-phase1.md](../devops/docs/kafka-event-driven-phase1.md).
+
+**Local:** start this service before or with OrderService so saga completes.
+
 ## APIs
 
 | Method | Path | Auth |
@@ -20,10 +28,11 @@ Port **8082**. JWT aligned with AuthService (`devops/data/keys/public.pem`).
 ```bash
 # From repo root
 ./devops/script/local-dev-setup.sh
+docker compose -f devops/script/docker-compose-app.yml up -d kafka
 cd InventoryService && mvn spring-boot:run
 ```
 
-## Sample curls
+## Sample curls (HTTP reserve)
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \

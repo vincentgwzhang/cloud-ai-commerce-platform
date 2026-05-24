@@ -6,9 +6,8 @@ import java.time.Duration;
 
 @ConfigurationProperties(prefix = "app.order.cache")
 public record OrderCacheProperties(
-        String idempotencyPrefix,
         Duration idempotencyTtl,
-        String orderCachePrefix,
-        Duration orderCacheTtl
+        Duration orderCacheTtl,
+        int ttlJitterMaxSeconds
 ) {
 }

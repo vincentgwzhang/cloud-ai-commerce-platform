@@ -7,9 +7,12 @@ import java.util.List;
 
 @ConfigurationProperties(prefix = "app.cache.product")
 public record ProductCacheProperties(
-        Duration ttl,
+        Duration detailTtl,
+        Duration hotTtl,
+        Duration nullCacheTtl,
         Duration lockTtl,
-        String keyPrefix,
+        Duration localCacheTtl,
+        int ttlJitterMaxSeconds,
         List<Long> hotProductIds
 ) {
 }

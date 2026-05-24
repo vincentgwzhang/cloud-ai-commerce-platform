@@ -39,7 +39,7 @@ class OrderQueryCacheTest {
         org.mockito.Mockito.lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         jsonMapper = JsonMapper.builder().findAndAddModules().build();
         OrderCacheProperties properties = new OrderCacheProperties(
-                "id:", Duration.ofHours(1), "test:order:", Duration.ofMinutes(5)
+                Duration.ofHours(1), Duration.ofMinutes(5), 0
         );
         cache = new OrderQueryCache(redisTemplate, jsonMapper, properties);
     }
@@ -51,15 +51,15 @@ class OrderQueryCacheTest {
                 OrderStatus.CREATED, "req", Instant.now(), Instant.now()
         );
         cache.put(response);
-        verify(valueOperations).set(eq("test:order:ORD-1"), any(String.class), any(Duration.class));
+        verify(valueOperations).set(eq("order:detail:ORD-1"), any(String.class), any(Duration.class));
 
-        when(valueOperations.get("test:order:ORD-1")).thenReturn(jsonMapper.writeValueAsString(response));
+        when(valueOperations.get("order:detail:ORD-1")).thenReturn(jsonMapper.writeValueAsString(response));
         assertThat(cache.get("ORD-1")).contains(response);
     }
 
     @Test
     void evictDeletesKey() {
         cache.evict("ORD-1");
-        verify(redisTemplate).delete("test:order:ORD-1");
+        verify(redisTemplate).delete("order:detail:ORD-1");
     }
 }

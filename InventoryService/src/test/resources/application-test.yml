@@ -15,6 +15,9 @@ spring:
       mode: always
       schema-locations: classpath:sql/test-schema.sql
       data-locations: classpath:sql/test-data.sql
+  kafka:
+    listener:
+      auto-startup: false
   data:
     redis:
       host: localhost
@@ -25,9 +28,18 @@ app:
     issuer: auth-service-test
     public-key-path: classpath:keys/public.pem
   inventory:
-    cache-key-prefix: "test:inventory:product:"
     cache-ttl: PT5M
-    idempotency-prefix: "test:inventory:idempotency:"
     idempotency-ttl: PT1H
-    lock-prefix: "test:inventory:lock:"
     lock-ttl: PT10S
+    local-cache-ttl: PT30S
+    ttl-jitter-max-seconds: 0
+    hot-product-codes:
+      - IPHONE17
+  kafka:
+    max-retries: 1
+    retry-interval-ms: 100
+    topics:
+      order-created: order-created
+      inventory-reserved: inventory-reserved
+      inventory-failed: inventory-failed
+      inventory-dlq: inventory-dlq

@@ -16,8 +16,8 @@ public class OrderQueryCache {
 
     private final StringRedisTemplate redisTemplate;
     private final JsonMapper jsonMapper;
-    private final String keyPrefix;
     private final Duration ttl;
+    private final int ttlJitterMaxSeconds;
 
     public OrderQueryCache(
             StringRedisTemplate redisTemplate,
@@ -26,36 +26,41 @@ public class OrderQueryCache {
     ) {
         this.redisTemplate = redisTemplate;
         this.jsonMapper = jsonMapper;
-        this.keyPrefix = properties.orderCachePrefix();
         this.ttl = properties.orderCacheTtl();
+        this.ttlJitterMaxSeconds = properties.ttlJitterMaxSeconds();
     }
 
     public Optional<OrderResponse> get(String orderNo) {
-        String json = redisTemplate.opsForValue().get(keyPrefix + orderNo);
-        if (json == null || json.isBlank()) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(jsonMapper.readValue(json, OrderResponse.class));
-        } catch (JacksonException ex) {
-            redisTemplate.delete(keyPrefix + orderNo);
-            return Optional.empty();
-        }
+        return read(OrderRedisKeys.detail(orderNo)).flatMap(json -> {
+            try {
+                return Optional.of(jsonMapper.readValue(json, OrderResponse.class));
+            } catch (JacksonException ex) {
+                RedisSafeExecutor.run(() -> redisTemplate.delete(OrderRedisKeys.detail(orderNo)));
+                return Optional.empty();
+            }
+        });
     }
 
     public void put(OrderResponse response) {
-        try {
-            redisTemplate.opsForValue().set(
-                    keyPrefix + response.orderNo(),
-                    jsonMapper.writeValueAsString(response),
-                    ttl
-            );
-        } catch (JacksonException ex) {
-            throw new IllegalStateException("Failed to cache order", ex);
-        }
+        Duration effectiveTtl = RedisTtlJitter.apply(ttl, ttlJitterMaxSeconds);
+        RedisSafeExecutor.run(() -> {
+            try {
+                redisTemplate.opsForValue().set(
+                        OrderRedisKeys.detail(response.orderNo()),
+                        jsonMapper.writeValueAsString(response),
+                        effectiveTtl
+                );
+            } catch (JacksonException ex) {
+                throw new IllegalStateException("Failed to cache order", ex);
+            }
+        });
     }
 
     public void evict(String orderNo) {
-        redisTemplate.delete(keyPrefix + orderNo);
+        RedisSafeExecutor.run(() -> redisTemplate.delete(OrderRedisKeys.detail(orderNo)));
+    }
+
+    private Optional<String> read(String key) {
+        return RedisSafeExecutor.optional(() -> redisTemplate.opsForValue().get(key));
     }
 }

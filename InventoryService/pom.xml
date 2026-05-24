@@ -49,6 +49,10 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter</artifactId>
         </dependency>
@@ -90,6 +94,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>
@@ -124,6 +133,7 @@
                         <exclude>**/config/SecurityConfig.class</exclude>
                         <exclude>**/config/JwtConfig.class</exclude>
                         <exclude>**/service/InventoryConcurrencyDemoService.class</exclude>
+                        <exclude>**/bootstrap/InventoryCacheWarmer.class</exclude>
                         <exclude>**/entity/**</exclude>
                     </excludes>
                 </configuration>

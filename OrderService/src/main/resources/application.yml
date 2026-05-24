@@ -56,10 +56,9 @@ app:
       order-dlq: order-dlq
   order:
     cache:
-      idempotency-prefix: "order:idempotency:"
       idempotency-ttl: PT24H
-      order-cache-prefix: "order:detail:"
       order-cache-ttl: PT10M
+      ttl-jitter-max-seconds: 60
 
 management:
   endpoints:

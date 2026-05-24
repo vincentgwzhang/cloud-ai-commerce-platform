@@ -9,11 +9,13 @@ public class OrderMetrics {
 
     private final Counter orderCreated;
     private final Counter orderFailed;
+    private final Counter orderEventPublished;
     private final Counter kafkaConsumeFailure;
 
     public OrderMetrics(MeterRegistry meterRegistry) {
         this.orderCreated = meterRegistry.counter("order_created_total");
         this.orderFailed = meterRegistry.counter("order_failed_total");
+        this.orderEventPublished = meterRegistry.counter("order_event_published_total");
         this.kafkaConsumeFailure = meterRegistry.counter("kafka_consume_failure_total");
     }
 
@@ -23,6 +25,10 @@ public class OrderMetrics {
 
     public void recordOrderFailed() {
         orderFailed.increment();
+    }
+
+    public void recordOrderEventPublished() {
+        orderEventPublished.increment();
     }
 
     public void recordKafkaConsumeFailure() {

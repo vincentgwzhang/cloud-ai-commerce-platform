@@ -14,8 +14,14 @@ class InventoryMetricsTest {
 
         metrics.recordReservationSuccess();
         metrics.recordReservationFailure();
+        metrics.recordOrderCreatedEventConsumed();
+        metrics.recordInventoryEventPublished();
+        metrics.recordKafkaConsumeFailure();
 
-        assertThat(registry.get("inventory_reservation_success").counter().count()).isEqualTo(1.0);
-        assertThat(registry.get("inventory_reservation_failure").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("inventory_reservation_success_total").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("inventory_reservation_failure_total").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("inventory_order_created_consumed_total").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("inventory_event_published_total").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("inventory_kafka_consume_failure_total").counter().count()).isEqualTo(1.0);
     }
 }

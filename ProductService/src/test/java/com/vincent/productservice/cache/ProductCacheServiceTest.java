@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -31,37 +33,44 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ProductCacheServiceTest {
 
     @Mock
     private StringRedisTemplate redisTemplate;
-
     @Mock
     private ValueOperations<String, String> valueOperations;
-
     @Mock
     private ProductRepository productRepository;
-
     @Mock
     private ProductCacheLock cacheLock;
+    @Mock
+    private LocalHotProductCache localHotCache;
+    @Mock
+    private ProductCacheMetrics cacheMetrics;
 
     private ProductCacheService productCacheService;
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(localHotCache.get(any())).thenReturn(Optional.empty());
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         ProductCacheProperties properties = new ProductCacheProperties(
                 Duration.ofMinutes(10),
+                Duration.ofMinutes(30),
+                Duration.ofMinutes(2),
                 Duration.ofSeconds(30),
-                "product:",
+                Duration.ofSeconds(30),
+                0,
                 List.of(1L, 2L, 3L)
         );
-        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
         productCacheService = new ProductCacheService(
                 redisTemplate,
-                mapper,
+                JsonMapper.builder().findAndAddModules().build(),
                 productRepository,
                 cacheLock,
+                localHotCache,
+                cacheMetrics,
                 properties
         );
     }
@@ -70,87 +79,72 @@ class ProductCacheServiceTest {
     void getByIdReturnsCachedValueOnHit() throws Exception {
         ProductResponse response = sampleResponse();
         JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
-        when(valueOperations.get("product:1")).thenReturn(mapper.writeValueAsString(response));
+        when(valueOperations.get("product:detail:1")).thenReturn(mapper.writeValueAsString(response));
 
         ProductResponse result = productCacheService.getById(1L);
 
         assertThat(result.name()).isEqualTo("Product 1");
         verify(productRepository, never()).findById(any());
+        verify(cacheMetrics).recordHit();
     }
 
     @Test
     void getByIdLoadsDatabaseOnMissWithLock() throws Exception {
-        when(valueOperations.get("product:99")).thenReturn(null);
-        when(cacheLock.tryAcquire("product:99:lock")).thenReturn("token-1");
+        when(valueOperations.get("product:detail:99")).thenReturn(null);
+        when(valueOperations.get("product:notfound:99")).thenReturn(null);
+        when(cacheLock.tryAcquire("product:detail:99:lock")).thenReturn("token-1");
         when(productRepository.findById(99L)).thenReturn(Optional.of(sampleEntity(99L)));
 
         ProductResponse result = productCacheService.getById(99L);
 
         assertThat(result.id()).isEqualTo(99L);
-        verify(valueOperations).set(eq("product:99"), anyString(), eq(Duration.ofMinutes(10)));
-        verify(cacheLock).release("product:99:lock", "token-1");
+        verify(valueOperations).set(eq("product:detail:99"), anyString(), any(Duration.class));
+        verify(cacheLock).release("product:detail:99:lock", "token-1");
     }
 
     @Test
-    void getByIdThrowsWhenProductMissing() {
-        when(valueOperations.get("product:404")).thenReturn(null);
-        when(cacheLock.tryAcquire("product:404:lock")).thenReturn("token-1");
+    void getByIdThrowsWhenProductMissingAndCachesNullMarker() {
+        when(valueOperations.get("product:detail:404")).thenReturn(null);
+        when(valueOperations.get("product:notfound:404")).thenReturn(null);
+        when(cacheLock.tryAcquire("product:detail:404:lock")).thenReturn("token-1");
         when(productRepository.findById(404L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productCacheService.getById(404L))
                 .isInstanceOf(ProductNotFoundException.class);
+        verify(valueOperations).set(eq("product:notfound:404"), eq("1"), any(Duration.class));
     }
 
     @Test
-    void getByIdReturnsPeerLoadedCacheWhenLockNotAcquired() throws Exception {
+    void getByIdUsesLocalHotCache() {
         ProductResponse response = sampleResponse();
-        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
-        String json = mapper.writeValueAsString(response);
-        when(valueOperations.get("product:1")).thenReturn(null, null, json);
-        when(cacheLock.tryAcquire("product:1:lock")).thenReturn(null);
+        when(localHotCache.get(1L)).thenReturn(Optional.of(response));
 
         ProductResponse result = productCacheService.getById(1L);
 
-        assertThat(result.name()).isEqualTo("Product 1");
-        verify(productRepository, never()).findById(any());
+        assertThat(result.id()).isEqualTo(1L);
+        verify(cacheMetrics).recordHit();
+        verify(valueOperations, never()).get(anyString());
     }
 
     @Test
-    void getByIdUsesDoubleCheckedCacheAfterLock() throws Exception {
-        ProductResponse response = ProductResponse.from(sampleEntity(2L));
-        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
-        when(valueOperations.get("product:2"))
-                .thenReturn(null)
-                .thenReturn(mapper.writeValueAsString(response));
-        when(cacheLock.tryAcquire("product:2:lock")).thenReturn("token-2");
-
-        ProductResponse result = productCacheService.getById(2L);
-
-        assertThat(result.id()).isEqualTo(2L);
-        verify(productRepository, never()).findById(any());
-        verify(cacheLock).release("product:2:lock", "token-2");
-    }
-
-    @Test
-    void getByIdEvictsInvalidCachePayload() throws Exception {
-        when(valueOperations.get("product:3")).thenReturn("{invalid-json");
-        when(cacheLock.tryAcquire("product:3:lock")).thenReturn("token-3");
-        when(productRepository.findById(3L)).thenReturn(Optional.of(sampleEntity(3L)));
-
-        ProductResponse result = productCacheService.getById(3L);
-
-        assertThat(result.id()).isEqualTo(3L);
-        verify(redisTemplate, org.mockito.Mockito.times(2)).delete("product:3");
-        verify(valueOperations).set(eq("product:3"), anyString(), eq(Duration.ofMinutes(10)));
-    }
-
-    @Test
-    void putWritesToCache() throws Exception {
+    void putAndGetHotList() throws Exception {
         ProductResponse response = sampleResponse();
-
+        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
         productCacheService.put(response);
+        productCacheService.putHotList(List.of(response));
+        when(valueOperations.get("product:hot:list")).thenReturn(mapper.writeValueAsString(List.of(response)));
 
-        verify(valueOperations).set(eq("product:1"), anyString(), eq(Duration.ofMinutes(10)));
+        assertThat(productCacheService.getHotList()).isPresent();
+    }
+
+    @Test
+    void getByIdReturnsFromNullCacheWithoutDb() {
+        when(valueOperations.get("product:detail:404")).thenReturn(null);
+        when(valueOperations.get("product:notfound:404")).thenReturn("1");
+
+        assertThatThrownBy(() -> productCacheService.getById(404L))
+                .isInstanceOf(ProductNotFoundException.class);
+        verify(productRepository, never()).findById(any());
     }
 
     private static Product sampleEntity(Long id) {

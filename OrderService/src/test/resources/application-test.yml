@@ -38,7 +38,6 @@ app:
       order-dlq: order-dlq
   order:
     cache:
-      idempotency-prefix: "test:order:idempotency:"
       idempotency-ttl: PT1H
-      order-cache-prefix: "test:order:detail:"
       order-cache-ttl: PT5M
+      ttl-jitter-max-seconds: 0

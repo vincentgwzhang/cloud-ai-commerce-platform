@@ -27,5 +27,6 @@ exec docker run --rm \
   -e SPRING_PROFILES_ACTIVE=docker \
   -e "DB_HOST=${DB_HOST:-host.docker.internal}" \
   -e "REDIS_HOST=${REDIS_HOST:-host.docker.internal}" \
+  -e "KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-host.docker.internal:9092}" \
   -e "JWT_PUBLIC_KEY_PATH=file:/app/keys/public.pem" \
   "${IMAGE}"

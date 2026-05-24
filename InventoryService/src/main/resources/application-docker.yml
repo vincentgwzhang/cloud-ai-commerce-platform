@@ -9,6 +9,8 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:host.docker.internal}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:host.docker.internal:9092}
 
 app:
   jwt:

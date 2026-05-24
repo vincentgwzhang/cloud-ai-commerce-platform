@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,41 +33,41 @@ class InventoryDistributedLockTest {
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         InventoryProperties properties = new InventoryProperties(
-                "inv:",
                 Duration.ofMinutes(5),
-                "id:",
                 Duration.ofHours(1),
-                "test:lock:",
-                Duration.ofSeconds(10)
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(30),
+                0,
+                List.of()
         );
         lock = new InventoryDistributedLock(redisTemplate, properties);
     }
 
     @Test
     void tryLockReturnsTokenWhenAcquired() {
-        when(valueOperations.setIfAbsent(eq("test:lock:IPHONE17"), any(String.class), any(Duration.class)))
+        when(valueOperations.setIfAbsent(eq("inventory:lock:IPHONE17"), any(String.class), any(Duration.class)))
                 .thenReturn(true);
         assertThat(lock.tryLock("IPHONE17")).isNotBlank();
     }
 
     @Test
     void tryLockReturnsNullWhenBusy() {
-        when(valueOperations.setIfAbsent(eq("test:lock:IPHONE17"), any(String.class), any(Duration.class)))
+        when(valueOperations.setIfAbsent(eq("inventory:lock:IPHONE17"), any(String.class), any(Duration.class)))
                 .thenReturn(false);
         assertThat(lock.tryLock("IPHONE17")).isNull();
     }
 
     @Test
     void releaseDeletesMatchingToken() {
-        when(valueOperations.get("test:lock:IPHONE17")).thenReturn("token-a");
+        when(valueOperations.get("inventory:lock:IPHONE17")).thenReturn("token-a");
         lock.release("IPHONE17", "token-a");
-        verify(redisTemplate).delete("test:lock:IPHONE17");
+        verify(redisTemplate).delete("inventory:lock:IPHONE17");
     }
 
     @Test
     void releaseSkipsWhenTokenMismatch() {
-        when(valueOperations.get("test:lock:IPHONE17")).thenReturn("token-a");
+        when(valueOperations.get("inventory:lock:IPHONE17")).thenReturn("token-a");
         lock.release("IPHONE17", "token-b");
-        verify(redisTemplate, never()).delete("test:lock:IPHONE17");
+        verify(redisTemplate, never()).delete("inventory:lock:IPHONE17");
     }
 }

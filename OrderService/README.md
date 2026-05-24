@@ -10,6 +10,8 @@ docker compose -f devops/script/docker-compose-app.yml up -d kafka kafka-ui
 ./devops/script/local-dev-setup.sh
 ```
 
+Run **InventoryService (8082)** and **OrderService (8083)** for async saga. See [devops/docs/kafka-event-driven-phase1.md](../devops/docs/kafka-event-driven-phase1.md).
+
 ## APIs
 
 | Method | Path | Auth |
@@ -21,7 +23,7 @@ docker compose -f devops/script/docker-compose-app.yml up -d kafka kafka-ui
 | POST | `/api/orders/{orderNo}/cancel` | JWT |
 | POST | `/api/orders/demo/concurrent-create` | No |
 
-## Create order
+## Create order (async inventory)
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
@@ -34,30 +36,20 @@ curl -s -X POST http://localhost:8083/api/orders \
   -d '{"productCode":"IPHONE17","quantity":1,"requestId":"'$(uuidgen)'"}' | jq
 ```
 
+Poll `GET /api/orders/status/{orderNo}` until status is `CONFIRMED` or `FAILED`.
+
 ## Kafka topics
 
 | Topic | Role |
 |-------|------|
 | `order-created` | Published on new order |
-| `order-confirmed` | Published when inventory OK |
-| `order-failed` | Published on failure |
-| `inventory-reserved` | Consumed (from inventory-service later) |
+| `inventory-reserved` | Consumed from inventory-service |
 | `inventory-failed` | Consumed |
-| `order-dlq` | Dead letter after retries |
+| `order-confirmed` | Published when saga completes |
+| `order-failed` | Published on failure |
+| `order-dlq` | Dead letter after consumer retries |
 
 Kafka UI: http://localhost:18080
-
-### Manual saga test (publish inventory result)
-
-```bash
-# After creating order, note orderNo from response
-ORDER_NO=ORD-XXXXXXXX
-
-docker exec -it kafka /opt/kafka/bin/kafka-console-producer.sh \
-  --bootstrap-server localhost:9092 \
-  --topic inventory-reserved \
-  <<< "{\"orderNo\":\"$ORDER_NO\",\"productCode\":\"IPHONE17\",\"quantity\":1}"
-```
 
 ## Minikube
 

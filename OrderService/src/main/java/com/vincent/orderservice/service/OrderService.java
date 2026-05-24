@@ -160,13 +160,7 @@ public class OrderService {
             OrderResponse response = OrderResponse.from(saved);
 
             // TODO: future outbox pattern — same transaction as insert
-            eventPublisher.publishOrderCreated(new OrderCreatedEvent(
-                    saved.getOrderNo(),
-                    saved.getProductCode(),
-                    saved.getQuantity(),
-                    saved.getAmount(),
-                    saved.getRequestId()
-            ));
+            eventPublisher.publishOrderCreated(OrderCreatedEvent.from(saved));
 
             idempotencyStore.saveResult(request.requestId(), response);
             orderQueryCache.put(response);

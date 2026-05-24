@@ -26,9 +26,12 @@ app:
     public-key-path: classpath:keys/public.pem
   cache:
     product:
-      ttl: 10m
+      detail-ttl: 10m
+      hot-ttl: 30m
+      null-cache-ttl: 2m
       lock-ttl: 5s
-      key-prefix: "test:product:"
+      local-cache-ttl: 30s
+      ttl-jitter-max-seconds: 0
       hot-product-ids: 1,2,3
 
 logging:

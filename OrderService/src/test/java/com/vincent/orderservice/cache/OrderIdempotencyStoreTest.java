@@ -30,6 +30,8 @@ class OrderIdempotencyStoreTest {
     private StringRedisTemplate redisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
+    @Mock
+    private OrderCacheMetrics cacheMetrics;
 
     private OrderIdempotencyStore store;
     private JsonMapper jsonMapper;
@@ -39,14 +41,14 @@ class OrderIdempotencyStoreTest {
         org.mockito.Mockito.lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         jsonMapper = JsonMapper.builder().findAndAddModules().build();
         OrderCacheProperties properties = new OrderCacheProperties(
-                "test:id:", Duration.ofHours(1), "test:order:", Duration.ofMinutes(5)
+                Duration.ofHours(1), Duration.ofMinutes(5), 0
         );
-        store = new OrderIdempotencyStore(redisTemplate, jsonMapper, properties);
+        store = new OrderIdempotencyStore(redisTemplate, jsonMapper, cacheMetrics, properties);
     }
 
     @Test
     void tryClaimUsesSetIfAbsent() {
-        when(valueOperations.setIfAbsent(eq("test:id:req-1"), eq("PROCESSING"), any(Duration.class)))
+        when(valueOperations.setIfAbsent(eq("order:request:req-1"), eq("PROCESSING"), any(Duration.class)))
                 .thenReturn(true);
         assertThat(store.tryClaim("req-1")).isTrue();
     }
@@ -55,11 +57,12 @@ class OrderIdempotencyStoreTest {
     void findPreviousResultReturnsPayload() throws Exception {
         OrderResponse response = new OrderResponse(
                 "ORD-1", "IPHONE17", 1, new BigDecimal("999"),
-                OrderStatus.CREATED, "req-1", Instant.now(), Instant.now()
+                OrderStatus.CREATED, "req-2", Instant.now(), Instant.now()
         );
-        when(valueOperations.get("test:id:req-2")).thenReturn(jsonMapper.writeValueAsString(response));
+        when(valueOperations.get("order:request:req-2")).thenReturn(jsonMapper.writeValueAsString(response));
         Optional<OrderResponse> found = store.findPreviousResult("req-2");
         assertThat(found).contains(response);
+        verify(cacheMetrics).recordIdempotencyDuplicate();
     }
 
     @Test
@@ -69,13 +72,13 @@ class OrderIdempotencyStoreTest {
                 OrderStatus.CREATED, "req-3", Instant.now(), Instant.now()
         );
         store.saveResult("req-3", response);
-        verify(valueOperations).set(eq("test:id:req-3"), any(String.class), any(Duration.class));
+        verify(valueOperations).set(eq("order:request:req-3"), any(String.class), any(Duration.class));
     }
 
     @Test
     void findPreviousResultClearsCorruptJson() {
-        when(valueOperations.get("test:id:bad")).thenReturn("{bad");
+        when(valueOperations.get("order:request:bad")).thenReturn("{bad");
         assertThat(store.findPreviousResult("bad")).isEmpty();
-        verify(redisTemplate).delete("test:id:bad");
+        verify(redisTemplate).delete("order:request:bad");
     }
 }

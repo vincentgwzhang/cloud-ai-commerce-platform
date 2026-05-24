@@ -22,6 +22,11 @@ fi
 require_auth_service_secrets
 ensure_jwt_public_key
 
+if [[ "${SKIP_KAFKA_CHECK:-0}" != "1" ]]; then
+  chmod +x "${DEVOPS_ROOT}/script/lib/check-host-kafka.sh"
+  "${DEVOPS_ROOT}/script/lib/check-host-kafka.sh"
+fi
+
 echo "==> Phase 2: build (${SERVICE_ROOT})"
 cd "${SERVICE_ROOT}"
 eval "$(minikube docker-env)"
@@ -44,3 +49,4 @@ kubectl rollout status deployment/inventory-service --timeout=180s
 echo "==> InventoryService done"
 echo "    minikube service inventory-service --url"
 echo "    kubectl port-forward svc/inventory-service 8082:80"
+echo "    Kafka UI: http://localhost:18080"

@@ -14,10 +14,12 @@ class OrderMetricsTest {
 
         metrics.recordOrderCreated();
         metrics.recordOrderFailed();
+        metrics.recordOrderEventPublished();
         metrics.recordKafkaConsumeFailure();
 
         assertThat(registry.get("order_created_total").counter().count()).isEqualTo(1.0);
         assertThat(registry.get("order_failed_total").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("order_event_published_total").counter().count()).isEqualTo(1.0);
         assertThat(registry.get("kafka_consume_failure_total").counter().count()).isEqualTo(1.0);
     }
 }

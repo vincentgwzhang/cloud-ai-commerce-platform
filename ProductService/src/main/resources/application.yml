@@ -38,9 +38,12 @@ app:
       - file:../devops/data/keys/public.pem
   cache:
     product:
-      ttl: ${PRODUCT_CACHE_TTL:10m}
+      detail-ttl: ${PRODUCT_CACHE_DETAIL_TTL:10m}
+      hot-ttl: ${PRODUCT_CACHE_HOT_TTL:30m}
+      null-cache-ttl: ${PRODUCT_CACHE_NULL_TTL:2m}
       lock-ttl: ${PRODUCT_CACHE_LOCK_TTL:30s}
-      key-prefix: ${PRODUCT_CACHE_KEY_PREFIX:product:}
+      local-cache-ttl: ${PRODUCT_LOCAL_CACHE_TTL:30s}
+      ttl-jitter-max-seconds: ${PRODUCT_CACHE_JITTER_SECONDS:60}
       hot-product-ids:
         - 1
         - 2

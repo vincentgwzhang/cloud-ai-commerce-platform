@@ -1,7 +1,11 @@
 package com.vincent.inventoryservice.service;
 
+import com.vincent.inventoryservice.cache.InventoryCacheConsistency;
 import com.vincent.inventoryservice.cache.InventoryIdempotencyStore;
+import com.vincent.inventoryservice.cache.InventoryQueryCache;
 import com.vincent.inventoryservice.cache.InventoryRedisCache;
+import com.vincent.inventoryservice.cache.LocalHotInventoryCache;
+import com.vincent.inventoryservice.config.InventoryProperties;
 import com.vincent.inventoryservice.dto.InventoryResponse;
 import com.vincent.inventoryservice.entity.Inventory;
 import com.vincent.inventoryservice.exception.InsufficientInventoryException;
@@ -15,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Core inventory flows. Reservation logic is isolated for future Kafka event publishing.
+ * Core inventory flows. HTTP and Kafka paths both call {@link #reserve} for the same business rules.
  */
 @Service
 public class InventoryService {
@@ -26,6 +30,10 @@ public class InventoryService {
     private final InventoryRedisCache inventoryRedisCache;
     private final InventoryIdempotencyStore idempotencyStore;
     private final InventoryDistributedLock distributedLock;
+    private final InventoryQueryCache inventoryQueryCache;
+    private final InventoryCacheConsistency cacheConsistency;
+    private final LocalHotInventoryCache localHotInventoryCache;
+    private final InventoryProperties inventoryProperties;
     private final InventoryMetrics metrics;
 
     public InventoryService(
@@ -33,25 +41,42 @@ public class InventoryService {
             InventoryRedisCache inventoryRedisCache,
             InventoryIdempotencyStore idempotencyStore,
             InventoryDistributedLock distributedLock,
+            InventoryQueryCache inventoryQueryCache,
+            InventoryCacheConsistency cacheConsistency,
+            LocalHotInventoryCache localHotInventoryCache,
+            InventoryProperties inventoryProperties,
             InventoryMetrics metrics
     ) {
         this.inventoryRepository = inventoryRepository;
         this.inventoryRedisCache = inventoryRedisCache;
         this.idempotencyStore = idempotencyStore;
         this.distributedLock = distributedLock;
+        this.inventoryQueryCache = inventoryQueryCache;
+        this.cacheConsistency = cacheConsistency;
+        this.localHotInventoryCache = localHotInventoryCache;
+        this.inventoryProperties = inventoryProperties;
         this.metrics = metrics;
     }
 
     @Transactional(readOnly = true)
     public InventoryResponse getInventory(String productCode) {
-        Inventory inventory = loadInventory(productCode);
+        return inventoryQueryCache.get(productCode, () -> {
+            Inventory inventory = loadInventory(productCode);
+            warmCacheIfNeeded(inventory);
+            return InventoryResponse.from(inventory);
+        });
+    }
+
+    public void warmCache(Inventory inventory) {
         warmCacheIfNeeded(inventory);
-        return InventoryResponse.from(inventory);
+        if (isHotSku(inventory.getProductCode())) {
+            localHotInventoryCache.put(inventory.getProductCode(), InventoryResponse.from(inventory));
+        }
     }
 
     /**
      * Reserve stock: Redis atomic pre-check, DB optimistic update, write-through cache refresh.
-     * TODO: future Kafka event — inventory.reserved
+     * Idempotent on {@code requestId} (HTTP header or Kafka-derived key).
      */
     @Transactional
     public InventoryResponse reserve(String productCode, int quantity, String requestId) {
@@ -88,6 +113,8 @@ public class InventoryService {
             Inventory inventory = loadInventoryForUpdate(productCode);
             warmCacheIfNeeded(inventory);
 
+            // Redis-first decrement — fewer pessimistic DB reads under burst traffic.
+            // TODO: batch/async DB flush to reduce write amplification at very high QPS.
             var cacheResult = inventoryRedisCache.tryAtomicDecrement(productCode, quantity);
             if (cacheResult.isEmpty()) {
                 inventoryRedisCache.putAvailable(productCode, inventory.getAvailableStock());
@@ -199,11 +226,17 @@ public class InventoryService {
                 );
     }
 
-    /**
-     * Simple write-through: DB is source of truth; cache updated immediately after commit.
-     * Delayed double-delete (teaching note): under race, a second delete after TTL can reduce stale reads.
-     */
+    /** Write-through stock counter + invalidate query view (delayed second delete). */
     private void writeThroughCache(Inventory inventory) {
         inventoryRedisCache.putAvailable(inventory.getProductCode(), inventory.getAvailableStock());
+        if (isHotSku(inventory.getProductCode())) {
+            localHotInventoryCache.put(inventory.getProductCode(), InventoryResponse.from(inventory));
+        }
+        cacheConsistency.invalidateQueryView(inventory.getProductCode());
+    }
+
+    private boolean isHotSku(String productCode) {
+        var hot = inventoryProperties.hotProductCodes();
+        return hot != null && hot.contains(productCode);
     }
 }
