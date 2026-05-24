@@ -17,20 +17,20 @@ cd ProductService
 From **repository root**:
 
 ```bash
-./scripts/local-dev-setup.sh
+./devops/script/local-dev-setup.sh
 ```
 
 Or manually:
 
 ```bash
-mysql -u vincent -p commerce_platform < ../AuthService/sql/init.sql
-cd ../AuthService && ./scripts/generate-rsa-keys.sh
+mysql -u vincent -p commerce_platform < ../devops/db/init.sql
+../devops/script/local-dev-setup.sh
 docker run -d --name redis -p 6379:6379 redis:7-alpine
 ```
 
 Flyway creates `products` and seed data on first startup (`V1__init_product.sql`).
 
-**IntelliJ:** profile `local` uses `ProductService/data/keys/public.pem` (created by `local-dev-setup.sh`). Run config **ProductService [local]** sets working dir to `ProductService/`.
+**IntelliJ:** profile `local` uses `devops/data/keys/public.pem`. Run **ProductService [local]** with working dir `ProductService/`.
 
 ---
 
@@ -66,16 +66,15 @@ Public routes: `/api/v1/products/health`, Swagger, `/actuator/health`, `/actuato
 
 ### AuthService on Minikube + ProductService in IntelliJ (optional; 401 troubleshooting)
 
-ProductService verifies JWTs with the **same RSA public key** that signed the token. Minikube AuthService uses keys from Secret `auth-service-jwt-keys` (created from `AuthService/data/keys` at deploy time).
+ProductService verifies JWTs with the **same RSA public key** that signed the token. Minikube AuthService uses keys from Secret `auth-service-jwt-keys` (from `devops/data/keys` at deploy time).
 
 1. **Sync public key** (pick one):
    ```bash
-   ./scripts/sync-jwt-public-key.sh
-   # or, if Minikube keys may differ from your working tree:
-   ./scripts/sync-jwt-public-key-from-minikube.sh
+   # Ensure devops/data/keys/public.pem matches Minikube (if needed):
+   ../devops/script/ProductService/sync-jwt-public-key-from-minikube.sh
    ```
 2. **IntelliJ run config** (optional overrides):
-   - `JWT_PUBLIC_KEY_PATH=file:/absolute/path/to/AuthService/data/keys/public.pem`
+   - `JWT_PUBLIC_KEY_PATH=file:/absolute/path/to/devops/data/keys/public.pem`
    - `JWT_ISSUER=auth-service` (must match Minikube ConfigMap)
 3. **Get a new token from Minikube** (old tokens signed with a previous key pair will always 401):
    ```bash
@@ -120,8 +119,7 @@ Errors match AuthService shape (`timestamp`, `status`, `error`, `message`, `path
 ## 5. Docker
 
 ```bash
-chmod +x scripts/docker-run.sh
-./scripts/docker-run.sh
+../devops/script/ProductService/docker-run.sh
 ```
 
 See `docker-compose.snippet.yml` for Redis + product-service.
@@ -132,24 +130,24 @@ See `docker-compose.snippet.yml` for Redis + product-service.
 
 Reuses **AuthService** secrets: `auth-service-secret`, `auth-service-jwt-keys`.
 
-Manifests: `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/minikube/configmap-host-mysql.yaml`. Host **MySQL + Redis** (OS): [scripts/minikube-host-services.md](../scripts/minikube-host-services.md).
+Manifests: [devops/k8s/ProductService/](../devops/k8s/ProductService/). Host **MySQL + Redis** (OS): [devops/docs/minikube-host-services.md](../devops/docs/minikube-host-services.md).
 
 ### Deploy (recommended)
 
-1. Deploy AuthService first: `cd ../AuthService && ./scripts/minikube-deploy.sh`
-2. Deploy ProductService:
+**All services** from repository root:
 
 ```bash
-cd ProductService
-chmod +x scripts/minikube-deploy.sh scripts/minikube-uninstall.sh
-./scripts/minikube-deploy.sh
+./devops/script/install.sh
+./devops/script/uninstall.sh
 ```
 
-`minikube-deploy.sh` runs **uninstall → mvn package → docker build in Minikube → apply** (same pattern as AuthService).
+**ProductService only** (after Auth secrets exist on cluster):
 
-Teardown only: `./scripts/minikube-uninstall.sh`
+```bash
+../devops/script/ProductService/minikube-deploy.sh
+```
 
-Details: [k8s/minikube/README.md](k8s/minikube/README.md)
+Details: [devops/k8s/ProductService/minikube/README.md](../devops/k8s/ProductService/minikube/README.md)
 
 ---
 
@@ -171,7 +169,7 @@ JaCoCo report: `target/site/jacoco/index.html`
 |-----|---------|-------------|
 | `SERVER_PORT` | `8081` | HTTP port |
 | `JWT_ISSUER` | `auth-service` | Must match token issuer |
-| `JWT_PUBLIC_KEY_PATH` | `file:./data/keys/public.pem` | RS256 public key |
+| `JWT_PUBLIC_KEY_PATH` | `file:../devops/data/keys/public.pem` | RS256 public key |
 | `REDIS_HOST` | `localhost` | Redis host |
 | `PRODUCT_CACHE_TTL` | `10m` | Cache TTL |
 | `PRODUCT_HOT_IDS` | `1,2,3` | Hot preload IDs |

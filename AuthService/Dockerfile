@@ -5,8 +5,9 @@ WORKDIR /app
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
-COPY --chown=spring:spring target/auth-service-*.jar app.jar
-COPY --chown=spring:spring data/keys/ /app/keys/
+# Build from repository root: docker build -f AuthService/Dockerfile .
+COPY AuthService/target/auth-service-*.jar app.jar
+COPY devops/data/keys/ /app/keys/
 
 ENV SERVER_PORT=8080 \
     JWT_PRIVATE_KEY_PATH=file:/app/keys/private.pem \

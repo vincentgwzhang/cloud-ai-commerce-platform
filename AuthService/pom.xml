@@ -16,7 +16,6 @@
     <description>Stateless JWT Authentication Service</description>
 
     <properties>
-        <jacoco.minimum.coverage>0.85</jacoco.minimum.coverage>
     </properties>
 
     <dependencies>

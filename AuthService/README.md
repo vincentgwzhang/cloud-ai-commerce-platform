@@ -21,27 +21,26 @@ Default DB connection (IntelliJ / `application.yml`): `localhost:3306`, database
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS commerce_platform;"
 
 # Schema + sample users (password for all users: 123456)
-mysql -u vincent -p commerce_platform < sql/init.sql
+mysql -u vincent -p commerce_platform < ../devops/db/init.sql
 ```
 
 If you previously imported an old seed with invalid password hashes:
 
 ```bash
-mysql -u vincent -p commerce_platform < scripts/update-user-passwords.sql
+mysql -u vincent -p commerce_platform < ../devops/db/update-user-passwords.sql
 ```
 
 ### One-time: JWT keys
 
 ```bash
-chmod +x scripts/generate-rsa-keys.sh
-./scripts/generate-rsa-keys.sh
+../devops/script/local-dev-setup.sh
 ```
 
 ### Run in IntelliJ
 
 1. Open the **repository root** in IntelliJ (root `pom.xml` aggregates AuthService + ProductService).
 2. Set Project SDK to **JDK 25**.
-3. From repo root, run once: `../scripts/local-dev-setup.sh` (JWT keys + checklist).
+3. From repo root, run once: `./devops/script/local-dev-setup.sh` (JWT keys in `devops/data/keys/`).
 4. Run **`AuthService [local]`** from `.run/` (profile `local`, working dir `AuthService/`), **before** ProductService.
 5. Default URL: http://localhost:8080
 
@@ -75,20 +74,19 @@ mvn spring-boot:run
 
 ## 2. Git clone → run with Docker (MySQL on host)
 
-MySQL stays on your Ubuntu host; the container uses `host.docker.internal` (see `scripts/docker-run.sh`).
+MySQL stays on your Ubuntu host; the container uses `host.docker.internal` (see `devops/script/AuthService/docker-run.sh`).
 
 ### One-time: allow Docker to use MySQL user `vincent`
 
 ```bash
-sudo mysql < scripts/grant-mysql-docker-access.sql
+sudo mysql < ../devops/db/grant-mysql-docker-access.sql
 ```
 
 ### Build and run
 
 ```bash
-chmod +x scripts/docker-run.sh scripts/generate-rsa-keys.sh
-./scripts/generate-rsa-keys.sh
-./scripts/docker-run.sh
+../devops/script/local-dev-setup.sh
+../devops/script/AuthService/docker-run.sh
 ```
 
 `docker-run.sh` removes any existing `auth-service` container and `auth-service:1.0.0` image, runs `mvn -DskipTests package`, rebuilds the image, then starts the container. Override names with `AUTH_SERVICE_CONTAINER` / `AUTH_SERVICE_IMAGE` if needed.
@@ -107,24 +105,30 @@ Health check: http://localhost:8080/api/v1/auth/health
 
 Assumes **MySQL on the host** (same as above) and **Minikube** installed.
 
-### One-time
+### One-shot — all services (recommended)
+
+From repository root:
 
 ```bash
 minikube start
-sudo mysql < scripts/grant-mysql-docker-access.sql
-chmod +x scripts/minikube-deploy.sh scripts/minikube-uninstall.sh
+sudo mysql < devops/db/grant-mysql-docker-access.sql
+chmod +x devops/script/install.sh devops/script/uninstall.sh
+./devops/script/install.sh    # uninstall → Auth → Product
 ```
 
-### Deploy (uninstall + build + apply — single command)
+Teardown everything:
 
 ```bash
-./scripts/minikube-deploy.sh
+./devops/script/uninstall.sh
 ```
 
-Teardown only (optional):
+`install.sh` and `uninstall.sh` are safe to run alternately.
+
+### AuthService only
 
 ```bash
-./scripts/minikube-uninstall.sh
+../devops/script/AuthService/minikube-deploy.sh
+../devops/script/AuthService/minikube-uninstall.sh   # optional
 ```
 
 ### Test
@@ -164,7 +168,7 @@ curl -s http://localhost:8080/api/v1/auth/validate \
 
 Postman collection (optional): `../postman/cloud-ai-commerce-platform.postman_collection.json`
 
-More detail: [k8s/minikube/README.md](k8s/minikube/README.md)
+K8s manifests: [devops/k8s/AuthService/](../devops/k8s/AuthService/). More detail: [devops/k8s/AuthService/minikube/README.md](../devops/k8s/AuthService/minikube/README.md)
 
 ---
 
@@ -272,7 +276,7 @@ OpenAPI JSON: http://localhost:8080/v3/api-docs
 
 ## 6. Passwords and sample users
 
-### Sample users (after `sql/init.sql`)
+### Sample users (after `devops/db/init.sql`)
 
 | Username | Password | Role |
 |----------|----------|------|

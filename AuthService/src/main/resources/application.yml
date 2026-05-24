@@ -33,8 +33,8 @@ app:
     issuer: ${JWT_ISSUER:auth-service}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
     refresh-expiration-seconds: ${JWT_REFRESH_EXPIRATION_SECONDS:604800}
-    private-key-path: ${JWT_PRIVATE_KEY_PATH:file:./data/keys/private.pem}
-    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:./data/keys/public.pem}
+    private-key-path: ${JWT_PRIVATE_KEY_PATH:file:../devops/data/keys/private.pem}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:../devops/data/keys/public.pem}
 
 springdoc:
   api-docs:

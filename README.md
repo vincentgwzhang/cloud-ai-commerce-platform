@@ -15,15 +15,16 @@ Additional services will be added alongside `AuthService/` as separate Maven pro
 
 ```text
 cloud-ai-commerce-platform/
-├── README.md           # This file
-├── AuthService/        # Auth microservice (Spring Boot)
-│   ├── pom.xml
-│   ├── src/
-│   ├── sql/
-│   ├── scripts/
-│   ├── k8s/
-│   └── Dockerfile
-└── <OtherService>/     # Future microservices
+├── README.md
+├── pom.xml             # Parent POM (dependencyManagement)
+├── devops/
+│   ├── data/keys/      # RSA keys (generate via devops/script/local-dev-setup.sh)
+│   ├── k8s/            # AuthService + ProductService manifests
+│   ├── script/         # install.sh, uninstall.sh, local-dev-setup.sh
+│   └── db/             # MySQL SQL (manual apply)
+├── AuthService/
+├── ProductService/
+└── postman/
 ```
 
 Open the **repository root** in IntelliJ / VS Code / Cursor. The root `pom.xml` aggregates microservice modules so the IDE resolves Maven dependencies correctly.
@@ -44,11 +45,11 @@ Run **both services on the host** with the same JWT key pair and `JWT_ISSUER=aut
 ### One-time setup
 
 ```bash
-chmod +x scripts/local-dev-setup.sh
-./scripts/local-dev-setup.sh
+chmod +x devops/script/local-dev-setup.sh
+./devops/script/local-dev-setup.sh
 ```
 
-MySQL: `AuthService/sql/init.sql` on database `commerce_platform`. Redis on `localhost:6379`. Product rows: Flyway runs when ProductService starts.
+MySQL: `devops/db/init.sql` on database `commerce_platform`. Redis on `localhost:6379`. Product rows: Flyway runs when ProductService starts.
 
 ### Start order in IntelliJ
 
@@ -59,7 +60,7 @@ Use run configurations from `.run/` (imported automatically in IntelliJ):
 | 1 | **AuthService [local]** | http://localhost:8080 |
 | 2 | **ProductService [local]** | http://localhost:8081 |
 
-Profile `local`, working directories `AuthService/` and `ProductService/`. ProductService reads `../AuthService/data/keys/public.pem` — no Minikube required.
+Profile `local`, working directories `AuthService/` and `ProductService/`. Both read **`devops/data/keys/`** (`../devops/data/keys/*.pem`) — no Minikube required.
 
 ### Verify
 
@@ -73,13 +74,17 @@ curl -s -X POST http://localhost:8080/api/v1/auth/login \
 curl -s http://localhost:8081/api/v1/products -H "Authorization: Bearer <accessToken>"
 ```
 
-### Other deploy paths (unchanged)
+### Other deploy paths
 
 | Goal | Command |
 |------|---------|
-| Auth in Docker | `AuthService/scripts/docker-run.sh` (`SPRING_PROFILES_ACTIVE=docker`) |
-| Auth on Minikube | `AuthService/scripts/minikube-deploy.sh` |
-| Product in Docker | `ProductService/scripts/docker-run.sh` |
+| **All services on Minikube** | `./devops/script/install.sh` / `./devops/script/uninstall.sh` |
+| Auth in Docker | `./devops/script/AuthService/docker-run.sh` |
+| Product in Docker | `./devops/script/ProductService/docker-run.sh` |
+| Auth on Minikube only | `./devops/script/AuthService/minikube-deploy.sh` |
+| Product on Minikube only | `./devops/script/ProductService/minikube-deploy.sh` |
+
+See [devops/README.md](devops/README.md).
 
 Do not mix tokens: login URL and ProductService must use the **same** Auth deployment and key pair.
 

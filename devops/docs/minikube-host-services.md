@@ -17,10 +17,10 @@ Minikube pods reach services on your **Ubuntu host** via **`host.minikube.intern
    bind-address = 0.0.0.0
    ```
 
-2. Grant user from any host (from `AuthService/`):
+2. Grant user from any host:
 
    ```bash
-   sudo mysql < scripts/grant-mysql-docker-access.sql
+   sudo mysql < devops/db/grant-mysql-docker-access.sql
    sudo systemctl restart mysql
    ```
 
@@ -77,7 +77,7 @@ OS package (`redis-server`), not Docker.
 
 ## ProductService ConfigMap
 
-`ProductService/k8s/minikube/configmap-host-mysql.yaml` sets:
+`devops/k8s/ProductService/minikube/configmap-host-mysql.yaml` sets:
 
 - `DB_HOST=host.minikube.internal`
 - `REDIS_HOST=host.minikube.internal`

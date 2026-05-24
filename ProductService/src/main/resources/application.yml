@@ -35,7 +35,7 @@ spring:
 app:
   jwt:
     issuer: ${JWT_ISSUER:auth-service}
-    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:./data/keys/public.pem}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:../devops/data/keys/public.pem}
   cache:
     product:
       ttl: ${PRODUCT_CACHE_TTL:10m}

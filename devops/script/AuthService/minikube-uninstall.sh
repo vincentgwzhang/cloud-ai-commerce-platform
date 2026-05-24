@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# Defensive teardown of AuthService on Minikube (reverse of minikube-deploy.sh).
-# Safe to run even if you never ran minikube-deploy.sh — every step is best-effort.
+# Defensive teardown of AuthService on Minikube.
 #
-# Usage (from AuthService/): ./scripts/minikube-uninstall.sh
+# Usage: devops/script/AuthService/minikube-uninstall.sh
 #
 # Optional:
-#   REMOVE_MINIKUBE_IMAGE=0        keep auth-service images in Minikube (default: remove all auth-service:*)
-#   REMOVE_LOCAL_RSA_KEYS=1        delete data/keys/*.pem (next deploy runs generate-rsa-keys.sh)
+#   REMOVE_MINIKUBE_IMAGE=0
+#   REMOVE_LOCAL_RSA_KEYS=1
 #   AUTH_SERVICE_IMAGE=auth-service:1.0.0
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+DEVOPS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/paths.sh
+source "${DEVOPS_SCRIPT_DIR}/../lib/paths.sh"
+devops_init_paths "${BASH_SOURCE[0]}"
 # shellcheck source=minikube-lib.sh
-source "${ROOT}/scripts/minikube-lib.sh"
+source "${DEVOPS_SCRIPT_SERVICE_DIR}/minikube-lib.sh"
 
 REMOVE_MINIKUBE_IMAGE="${REMOVE_MINIKUBE_IMAGE:-1}"
 REMOVE_LOCAL_RSA_KEYS="${REMOVE_LOCAL_RSA_KEYS:-0}"
@@ -61,12 +62,11 @@ fi
 if [[ "${REMOVE_LOCAL_RSA_KEYS}" == "1" ]]; then
   remove_local_rsa_keys
 else
-  echo "==> Keeping local data/keys/ (deploy will run generate-rsa-keys.sh if missing)"
+  echo "==> Keeping local ${JWT_KEYS_DIR}/"
 fi
 
 if [[ "${MINIKUBE_DEPLOY:-0}" == "1" ]]; then
-  echo "==> Uninstall phase complete (continuing minikube-deploy.sh)"
+  echo "==> AuthService uninstall phase complete (continuing deploy)"
 else
-  echo "==> Done (no resources left is OK; re-run anytime). Deploy with:"
-  echo "    ./scripts/minikube-deploy.sh"
+  echo "==> AuthService uninstall done"
 fi

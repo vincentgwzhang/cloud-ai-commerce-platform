@@ -1,4 +1,4 @@
-# Active with: SPRING_PROFILES_ACTIVE=docker (scripts/docker-run.sh sets this)
+# Active with: SPRING_PROFILES_ACTIVE=docker (devops/script/AuthService/docker-run.sh)
 spring:
   config:
     activate:

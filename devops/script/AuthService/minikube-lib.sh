@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Shared helpers for minikube-deploy.sh / minikube-uninstall.sh
-# Source from AuthService/scripts/*.sh — do not run directly.
+# Shared helpers for AuthService Minikube deploy/uninstall.
 
-# Default image tag (must match k8s/deployment.yaml). Also clean legacy tag auth-service:1.0.
 readonly AUTH_SERVICE_DEFAULT_IMAGE="${AUTH_SERVICE_DEFAULT_IMAGE:-auth-service:1.0.0}"
 
 auth_service_image_tags() {
@@ -11,8 +9,8 @@ auth_service_image_tags() {
 }
 
 ensure_rsa_keys() {
-  echo "==> Ensuring RSA keys (scripts/generate-rsa-keys.sh)"
-  "${ROOT}/scripts/generate-rsa-keys.sh"
+  echo "==> Ensuring RSA keys in ${JWT_KEYS_DIR}"
+  JWT_KEYS_DIR="${JWT_KEYS_DIR}" "${DEVOPS_ROOT}/script/local-dev-setup.sh" --keys-only
 }
 
 remove_auth_service_minikube_images() {
@@ -26,7 +24,6 @@ remove_auth_service_minikube_images() {
     return 0
   fi
 
-  # Any tag matching auth-service (covers untagged leftovers / extra tags)
   while IFS= read -r ref; do
     [[ -z "${ref}" || "${ref}" == *"<none>"* ]] && continue
     docker rmi -f "${ref}" 2>/dev/null || true
@@ -37,6 +34,6 @@ remove_auth_service_minikube_images() {
 }
 
 remove_local_rsa_keys() {
-  echo "==> Removing local RSA keys in data/keys/"
-  rm -f "${ROOT}/data/keys/private.pem" "${ROOT}/data/keys/public.pem"
+  echo "==> Removing local RSA keys in ${JWT_KEYS_DIR}"
+  rm -f "${JWT_KEYS_DIR}/private.pem" "${JWT_KEYS_DIR}/public.pem"
 }

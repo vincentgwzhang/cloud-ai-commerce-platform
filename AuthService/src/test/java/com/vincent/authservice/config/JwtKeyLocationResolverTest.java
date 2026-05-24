@@ -35,7 +35,7 @@ class JwtKeyLocationResolverTest {
 
     @Test
     void resolvesRelativeFilePath() {
-        assertThat(resolver.resolveWritablePath("file:./data/keys/private.pem"))
+        assertThat(resolver.resolveWritablePath("file:../devops/data/keys/private.pem"))
                 .isPresent();
     }
 

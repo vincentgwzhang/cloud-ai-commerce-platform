@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Shared helpers for minikube-deploy.sh / minikube-uninstall.sh
-# Source from ProductService/scripts/*.sh — do not run directly.
+# Shared helpers for ProductService Minikube deploy/uninstall.
 
-# Default image tag (must match k8s/deployment.yaml).
 readonly PRODUCT_SERVICE_DEFAULT_IMAGE="${PRODUCT_SERVICE_DEFAULT_IMAGE:-product-service:1.0.0}"
 
 product_service_image_tags() {
@@ -11,8 +9,11 @@ product_service_image_tags() {
 }
 
 ensure_jwt_public_key() {
-  echo "==> Ensuring JWT public key in data/keys (for Docker image)"
-  "${ROOT}/scripts/sync-jwt-public-key.sh"
+  if [[ ! -f "${JWT_KEYS_DIR}/public.pem" ]]; then
+    echo "ERROR: ${JWT_KEYS_DIR}/public.pem missing. Run: devops/script/local-dev-setup.sh" >&2
+    return 1
+  fi
+  echo "==> Using JWT public key from ${JWT_KEYS_DIR}/public.pem"
 }
 
 remove_product_service_minikube_images() {
@@ -40,7 +41,7 @@ require_auth_service_secrets() {
   for name in auth-service-jwt-keys auth-service-secret; do
     if ! kubectl get secret "${name}" >/dev/null 2>&1; then
       echo "ERROR: Secret ${name} not found. Deploy AuthService first:" >&2
-      echo "    cd ../AuthService && ./scripts/minikube-deploy.sh" >&2
+      echo "    ${DEVOPS_ROOT}/script/install.sh" >&2
       missing=1
     fi
   done

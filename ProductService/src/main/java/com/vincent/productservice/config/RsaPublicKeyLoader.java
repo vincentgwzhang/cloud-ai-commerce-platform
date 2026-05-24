@@ -19,8 +19,7 @@ import java.util.List;
 public class RsaPublicKeyLoader {
 
     private static final List<String> LOCAL_FALLBACKS = List.of(
-            "file:./data/keys/public.pem",
-            "file:../AuthService/data/keys/public.pem"
+            "file:../devops/data/keys/public.pem"
     );
 
     private final ResourceLoader resourceLoader;
@@ -55,8 +54,8 @@ public class RsaPublicKeyLoader {
         throw new IllegalStateException("""
                 JWT public key not found. Tried: %s
                 From working directory: %s
-                Fix: run from repo root: ./scripts/local-dev-setup.sh
-                Or set JWT_PUBLIC_KEY_PATH to AuthService/data/keys/public.pem (absolute path).
+                Fix: run devops/script/local-dev-setup.sh
+                Or set JWT_PUBLIC_KEY_PATH to devops/data/keys/public.pem (absolute path).
                 """.formatted(tried, Path.of("").toAbsolutePath()));
     }
 

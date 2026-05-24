@@ -19,7 +19,7 @@ import java.util.Optional;
  * Ensures RSA key material is available before JWT beans initialize.
  * <ul>
  *   <li>{@code file:} / filesystem paths — generates missing keys under that directory</li>
- *   <li>{@code classpath:} — read-only; keys must be packaged or provided via {@code scripts/generate-rsa-keys.sh}</li>
+ *   <li>{@code classpath:} — read-only; keys must be packaged or provided via {@code devops/script/local-dev-setup.sh}</li>
  * </ul>
  */
 @Component
@@ -96,7 +96,7 @@ public class RsaKeyGenerator {
         }
 
         throw new IllegalStateException(
-                "JWT keys not found on classpath. Run ./scripts/generate-rsa-keys.sh "
+                "JWT keys not found on classpath. Run devops/script/local-dev-setup.sh "
                         + "or set JWT_PRIVATE_KEY_PATH / JWT_PUBLIC_KEY_PATH to writable file: locations. "
                         + "Missing: "
                         + (privateExists ? "" : jwtProperties.privateKeyPath() + " ")

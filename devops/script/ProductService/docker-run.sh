@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-cd "${ROOT_DIR}"
+DEVOPS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/paths.sh
+source "${DEVOPS_SCRIPT_DIR}/../lib/paths.sh"
+devops_init_paths "${BASH_SOURCE[0]}"
+
+ensure_jwt_public_key
+
+cd "${SERVICE_ROOT}"
 
 IMAGE="${PRODUCT_SERVICE_IMAGE:-product-service:1.0.0}"
 CONTAINER_NAME="${PRODUCT_SERVICE_CONTAINER:-product-service}"
 HOST_PORT="${HOST_PORT:-8081}"
 
-"${SCRIPT_DIR}/sync-jwt-public-key.sh"
-
-echo "Removing container '${CONTAINER_NAME}' (if present)..."
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-
-echo "Removing image '${IMAGE}' (if present)..."
 docker rmi -f "${IMAGE}" >/dev/null 2>&1 || true
 
 echo "Building JAR..."
 mvn -DskipTests package
 
 echo "Building Docker image '${IMAGE}'..."
-docker build -t "${IMAGE}" .
+cd "${REPO_ROOT}"
+docker build -f "${SERVICE_ROOT}/Dockerfile" -t "${IMAGE}" .
 
 echo "Starting container '${CONTAINER_NAME}' on port ${HOST_PORT}..."
 exec docker run --rm \
