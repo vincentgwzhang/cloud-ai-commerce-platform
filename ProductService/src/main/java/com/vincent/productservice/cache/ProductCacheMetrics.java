@@ -11,8 +11,8 @@ public class ProductCacheMetrics {
     private final Counter cacheMiss;
 
     public ProductCacheMetrics(MeterRegistry meterRegistry) {
-        this.cacheHit = meterRegistry.counter("cache_hit_total");
-        this.cacheMiss = meterRegistry.counter("cache_miss_total");
+        this.cacheHit = meterRegistry.counter("product_cache_hit_total");
+        this.cacheMiss = meterRegistry.counter("product_cache_miss_total");
     }
 
     public void recordHit() {

@@ -26,7 +26,8 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/api/inventory/health").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/orders/health").permitAll()
                         .pathMatchers("/api/inventory/demo/**", "/api/orders/demo/**").permitAll()
-                        .pathMatchers("/actuator/health").permitAll()
+                        .pathMatchers("/actuator/health", "/actuator/health/**", "/actuator/info",
+                                "/actuator/metrics", "/actuator/metrics/**", "/actuator/prometheus").permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();

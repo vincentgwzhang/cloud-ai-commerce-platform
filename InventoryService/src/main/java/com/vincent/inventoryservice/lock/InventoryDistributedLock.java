@@ -3,6 +3,7 @@ package com.vincent.inventoryservice.lock;
 import com.vincent.inventoryservice.cache.InventoryRedisKeys;
 import com.vincent.inventoryservice.cache.RedisSafeExecutor;
 import com.vincent.inventoryservice.config.InventoryProperties;
+import com.vincent.inventoryservice.observability.InventoryLockMetrics;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -18,10 +19,16 @@ public class InventoryDistributedLock {
 
     private final StringRedisTemplate redisTemplate;
     private final Duration lockTtl;
+    private final InventoryLockMetrics lockMetrics;
 
-    public InventoryDistributedLock(StringRedisTemplate redisTemplate, InventoryProperties properties) {
+    public InventoryDistributedLock(
+            StringRedisTemplate redisTemplate,
+            InventoryProperties properties,
+            InventoryLockMetrics lockMetrics
+    ) {
         this.redisTemplate = redisTemplate;
         this.lockTtl = properties.lockTtl();
+        this.lockMetrics = lockMetrics;
     }
 
     public String tryLock(String productCode) {
@@ -37,6 +44,11 @@ public class InventoryDistributedLock {
         boolean acquired = RedisSafeExecutor.optional(() ->
                 redisTemplate.opsForValue().setIfAbsent(lockKey, token, lockTtl)
         ).map(Boolean.TRUE::equals).orElse(false);
+        if (acquired) {
+            lockMetrics.recordAcquired();
+        } else {
+            lockMetrics.recordFailed();
+        }
         return acquired ? token : null;
     }
 

@@ -10,6 +10,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.DeserializationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.backoff.FixedBackOff;
 
 /**
@@ -23,6 +25,8 @@ import org.springframework.util.backoff.FixedBackOff;
  */
 @Configuration
 public class KafkaConsumerConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(KafkaConsumerConfig.class);
 
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(
@@ -40,6 +44,10 @@ public class KafkaConsumerConfig {
         );
         DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
         handler.addNotRetryableExceptions(DeserializationException.class);
+        handler.setRetryListeners((record, ex, attempt) -> log.warn(
+                "Kafka consumer retry attempt={} topic={} partition={} offset={} error={}",
+                attempt, record.topic(), record.partition(), record.offset(), ex.getMessage()));
+        handler.setCommitRecovered(true);
         return handler;
     }
 

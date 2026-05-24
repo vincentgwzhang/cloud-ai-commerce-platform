@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import com.vincent.inventoryservice.config.InventoryKafkaProperties;
 import com.vincent.inventoryservice.kafka.event.InventoryFailedEvent;
 import com.vincent.inventoryservice.kafka.event.InventoryReservedEvent;
+import com.vincent.inventoryservice.observability.MdcSupport;
 import com.vincent.inventoryservice.service.InventoryMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,20 +42,30 @@ public class InventoryEventPublisher {
 
     public void publishReserved(InventoryReservedEvent event) {
         publish(kafkaProperties.topics().inventoryReserved(), event.orderNo(), event);
-        metrics.recordInventoryEventPublished();
     }
 
     public void publishFailed(InventoryFailedEvent event) {
         publish(kafkaProperties.topics().inventoryFailed(), event.orderNo(), event);
-        metrics.recordInventoryEventPublished();
     }
 
     private void publish(String topic, String key, Object payload) {
+        long startNanos = System.nanoTime();
         try {
             String json = jsonMapper.writeValueAsString(payload);
-            kafkaTemplate.send(topic, key, json);
-            log.debug("Published to {} key={}", topic, key);
+            kafkaTemplate.send(topic, key, json).whenComplete((result, ex) -> {
+                long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+                String requestId = MdcSupport.requestId().orElse("n/a");
+                if (ex != null) {
+                    log.error("Kafka publish failed topic={} key={} requestId={} durationMs={}",
+                            topic, key, requestId, durationMs, ex);
+                } else {
+                    metrics.recordInventoryEventPublished();
+                    log.info("Kafka publish ok topic={} key={} requestId={} durationMs={}",
+                            topic, key, requestId, durationMs);
+                }
+            });
         } catch (JacksonException ex) {
+            log.error("Kafka publish serialization failed topic={} key={}", topic, key, ex);
             throw new IllegalStateException("Failed to serialize Kafka payload for topic " + topic, ex);
         }
     }

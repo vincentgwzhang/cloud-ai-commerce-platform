@@ -126,6 +126,7 @@
                         <exclude>**/config/JwtConfig.class</exclude>
                         <exclude>**/service/OrderConcurrencyDemoService.class</exclude>
                         <exclude>**/security/**</exclude>
+                        <exclude>**/observability/**</exclude>
                         <exclude>**/entity/**</exclude>
                     </excludes>
                 </configuration>

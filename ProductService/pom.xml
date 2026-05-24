@@ -125,6 +125,7 @@
                         <exclude>**/dto/**</exclude>
                         <exclude>**/config/ApplicationConfig.class</exclude>
                         <exclude>**/bootstrap/HotProductPreloader.class</exclude>
+                        <exclude>**/observability/**</exclude>
                     </excludes>
                 </configuration>
             </plugin>

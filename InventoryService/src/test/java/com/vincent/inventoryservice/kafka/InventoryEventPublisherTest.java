@@ -11,8 +11,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class InventoryEventPublisherTest {
@@ -41,7 +44,11 @@ class InventoryEventPublisherTest {
 
     @Test
     void publishReserved() {
+        when(kafkaTemplate.send(eq("inventory-reserved"), eq("ORD-1"), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
         publisher.publishReserved(InventoryReservedEvent.of("ORD-1", "IPHONE17", 1));
+
         verify(kafkaTemplate).send(eq("inventory-reserved"), eq("ORD-1"), org.mockito.ArgumentMatchers.anyString());
         verify(metrics).recordInventoryEventPublished();
     }

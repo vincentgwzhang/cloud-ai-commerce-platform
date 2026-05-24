@@ -1,6 +1,7 @@
 package com.vincent.orderservice.kafka.event;
 
 import com.vincent.orderservice.entity.Order;
+import com.vincent.orderservice.observability.MdcSupport;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,6 +22,7 @@ public record OrderCreatedEvent(
         int quantity,
         BigDecimal amount,
         String requestId,
+        String traceId,
         Instant timestamp
 ) {
 
@@ -35,6 +37,7 @@ public record OrderCreatedEvent(
                 order.getQuantity(),
                 order.getAmount(),
                 order.getRequestId(),
+                MdcSupport.traceId().orElse(null),
                 Instant.now()
         );
     }

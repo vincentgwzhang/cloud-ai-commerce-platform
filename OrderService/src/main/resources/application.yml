@@ -64,13 +64,29 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: when_authorized
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-}] [%X{traceId:-}] %logger{36} - %msg%n"
 
 springdoc:
   api-docs:

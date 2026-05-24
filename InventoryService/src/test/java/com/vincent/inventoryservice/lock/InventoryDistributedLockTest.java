@@ -1,6 +1,7 @@
 package com.vincent.inventoryservice.lock;
 
 import com.vincent.inventoryservice.config.InventoryProperties;
+import com.vincent.inventoryservice.observability.InventoryLockMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,9 @@ class InventoryDistributedLockTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private InventoryLockMetrics lockMetrics;
+
     private InventoryDistributedLock lock;
 
     @BeforeEach
@@ -40,7 +44,7 @@ class InventoryDistributedLockTest {
                 0,
                 List.of()
         );
-        lock = new InventoryDistributedLock(redisTemplate, properties);
+        lock = new InventoryDistributedLock(redisTemplate, properties, lockMetrics);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.vincent.authservice.service;
 
 import com.vincent.authservice.config.JwtProperties;
+import com.vincent.authservice.observability.AuthMetrics;
 import com.vincent.authservice.dto.LoginRequest;
 import com.vincent.authservice.dto.LoginResponse;
 import com.vincent.authservice.dto.RefreshTokenRequest;
@@ -51,6 +52,9 @@ class AuthServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private AuthMetrics authMetrics;
 
     @InjectMocks
     private AuthService authService;

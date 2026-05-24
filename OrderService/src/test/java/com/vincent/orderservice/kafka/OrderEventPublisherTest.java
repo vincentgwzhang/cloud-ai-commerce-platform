@@ -14,9 +14,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OrderEventPublisherTest {
@@ -54,7 +56,11 @@ class OrderEventPublisherTest {
         order.setRequestId("req-1");
         order.setStatus(OrderStatus.CREATED);
 
+        when(kafkaTemplate.send(eq("order-created"), eq("ORD-1"), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
         publisher.publishOrderCreated(OrderCreatedEvent.from(order));
+
         verify(kafkaTemplate).send(eq("order-created"), eq("ORD-1"), org.mockito.ArgumentMatchers.anyString());
         verify(orderMetrics).recordOrderEventPublished();
     }

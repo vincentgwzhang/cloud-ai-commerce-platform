@@ -13,7 +13,7 @@ class ProductCacheMetricsTest {
         ProductCacheMetrics metrics = new ProductCacheMetrics(registry);
         metrics.recordHit();
         metrics.recordMiss();
-        assertThat(registry.get("cache_hit_total").counter().count()).isEqualTo(1.0);
-        assertThat(registry.get("cache_miss_total").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("product_cache_hit_total").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("product_cache_miss_total").counter().count()).isEqualTo(1.0);
     }
 }

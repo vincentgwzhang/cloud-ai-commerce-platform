@@ -6,6 +6,7 @@ import com.vincent.authservice.dto.LoginResponse;
 import com.vincent.authservice.dto.RefreshTokenRequest;
 import com.vincent.authservice.dto.TokenValidationResponse;
 import com.vincent.authservice.entity.User;
+import com.vincent.authservice.observability.AuthMetrics;
 import com.vincent.authservice.repository.UserRepository;
 import com.vincent.authservice.security.CustomUserDetails;
 import org.slf4j.Logger;
@@ -29,19 +30,22 @@ public class AuthService {
     private final JwtProperties jwtProperties;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
+    private final AuthMetrics authMetrics;
 
     public AuthService(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
             JwtProperties jwtProperties,
             RefreshTokenService refreshTokenService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            AuthMetrics authMetrics
     ) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.jwtProperties = jwtProperties;
         this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
+        this.authMetrics = authMetrics;
     }
 
     @Transactional
@@ -57,10 +61,12 @@ public class AuthService {
             String accessToken = jwtService.generateAccessToken(authentication);
             String refreshToken = refreshTokenService.issueForUser(user);
 
+            authMetrics.recordLoginSuccess();
             log.info("Login success for user={}", principal.getUsername());
 
             return buildLoginResponse(accessToken, refreshToken, principal);
         } catch (BadCredentialsException ex) {
+            authMetrics.recordLoginFailure();
             log.warn("Login failure for user={}", request.username());
             throw ex;
         }

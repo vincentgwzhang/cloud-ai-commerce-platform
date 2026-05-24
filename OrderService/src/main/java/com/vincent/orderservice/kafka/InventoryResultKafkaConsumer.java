@@ -3,6 +3,7 @@ package com.vincent.orderservice.kafka;
 import tools.jackson.databind.json.JsonMapper;
 import com.vincent.orderservice.kafka.event.InventoryFailedEvent;
 import com.vincent.orderservice.kafka.event.InventoryReservedEvent;
+import com.vincent.orderservice.observability.BusinessEventLog;
 import com.vincent.orderservice.service.OrderMetrics;
 import com.vincent.orderservice.service.OrderService;
 import org.slf4j.Logger;
@@ -56,9 +57,13 @@ public class InventoryResultKafkaConsumer {
             containerFactory = "orderKafkaListenerContainerFactory"
     )
     public void onInventoryFailed(String payload) {
+        long startNanos = System.nanoTime();
         try {
             InventoryFailedEvent event = jsonMapper.readValue(payload, InventoryFailedEvent.class);
             orderService.onInventoryFailed(event);
+            BusinessEventLog.info(log, "INVENTORY_FAILED", event.orderNo(), event.productCode(), null);
+            log.info("inventory-failed processed orderNo={} durationMs={}",
+                    event.orderNo(), (System.nanoTime() - startNanos) / 1_000_000L);
         } catch (Exception ex) {
             orderMetrics.recordKafkaConsumeFailure();
             log.error("Failed to process inventory-failed: {}", payload, ex);

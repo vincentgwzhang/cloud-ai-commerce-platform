@@ -10,6 +10,7 @@ import com.vincent.orderservice.exception.DuplicateOrderRequestException;
 import com.vincent.orderservice.exception.InvalidOrderStateException;
 import com.vincent.orderservice.exception.OrderNotFoundException;
 import com.vincent.orderservice.kafka.OrderEventPublisher;
+import com.vincent.orderservice.observability.BusinessEventLog;
 import com.vincent.orderservice.kafka.event.InventoryFailedEvent;
 import com.vincent.orderservice.kafka.event.InventoryReservedEvent;
 import com.vincent.orderservice.kafka.event.OrderCreatedEvent;
@@ -92,6 +93,7 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         Order saved = orderRepository.save(order);
         orderQueryCache.evict(orderNo);
+        BusinessEventLog.info(log, "ORDER_CANCELLED", orderNo, saved.getProductCode(), null);
         return OrderResponse.from(saved);
     }
 
@@ -160,12 +162,13 @@ public class OrderService {
             OrderResponse response = OrderResponse.from(saved);
 
             // TODO: future outbox pattern — same transaction as insert
-            eventPublisher.publishOrderCreated(OrderCreatedEvent.from(saved));
+            OrderCreatedEvent createdEvent = OrderCreatedEvent.from(saved);
+            eventPublisher.publishOrderCreated(createdEvent);
 
             idempotencyStore.saveResult(request.requestId(), response);
             orderQueryCache.put(response);
             orderMetrics.recordOrderCreated();
-            log.debug("Order created {}", saved.getOrderNo());
+            BusinessEventLog.info(log, "ORDER_CREATED", saved.getOrderNo(), saved.getProductCode(), createdEvent.eventId());
             return response;
         } catch (RuntimeException ex) {
             idempotencyStore.releaseClaim(request.requestId());

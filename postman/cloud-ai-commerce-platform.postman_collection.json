@@ -665,6 +665,736 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "Observability",
+          "description": "Actuator endpoints per service. **Note:** gateway routes only cover `/api/*` business paths \u2014 actuator is called on each service's **direct port** (8080\u20138083, 8088). See `devops/docs/observability/local-validation.md`.",
+          "item": [
+            {
+              "name": "AuthService",
+              "description": "Spring Boot Actuator for **auth-service (8080)** (`{{authServiceBaseUrl}}`).",
+              "item": [
+                {
+                  "name": "Health",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{authServiceBaseUrl}}/actuator/health",
+                      "host": [
+                        "{{authServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "health"
+                      ]
+                    },
+                    "description": "**auth-service (8080)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Info",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{authServiceBaseUrl}}/actuator/info",
+                      "host": [
+                        "{{authServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "info"
+                      ]
+                    },
+                    "description": "**auth-service (8080)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Metrics",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{authServiceBaseUrl}}/actuator/metrics",
+                      "host": [
+                        "{{authServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "metrics"
+                      ]
+                    },
+                    "description": "**auth-service (8080)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Prometheus",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{authServiceBaseUrl}}/actuator/prometheus",
+                      "host": [
+                        "{{authServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "prometheus"
+                      ]
+                    },
+                    "description": "**auth-service (8080)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "Gateway",
+              "description": "Spring Boot Actuator for **gateway-service (8088)** (`{{gatewayServiceBaseUrl}}`).",
+              "item": [
+                {
+                  "name": "Health",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{gatewayServiceBaseUrl}}/actuator/health",
+                      "host": [
+                        "{{gatewayServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "health"
+                      ]
+                    },
+                    "description": "**gateway-service (8088)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Info",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{gatewayServiceBaseUrl}}/actuator/info",
+                      "host": [
+                        "{{gatewayServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "info"
+                      ]
+                    },
+                    "description": "**gateway-service (8088)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Metrics",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{gatewayServiceBaseUrl}}/actuator/metrics",
+                      "host": [
+                        "{{gatewayServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "metrics"
+                      ]
+                    },
+                    "description": "**gateway-service (8088)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Prometheus",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{gatewayServiceBaseUrl}}/actuator/prometheus",
+                      "host": [
+                        "{{gatewayServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "prometheus"
+                      ]
+                    },
+                    "description": "**gateway-service (8088)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Gateway Routes",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{gatewayServiceBaseUrl}}/actuator/gateway/routes",
+                      "host": [
+                        "{{gatewayServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "gateway",
+                        "routes"
+                      ]
+                    },
+                    "description": "**gateway-service (8088)** \u2014 `/actuator/gateway/routes`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "ProductService",
+              "description": "Spring Boot Actuator for **product-service (8081)** (`{{productServiceBaseUrl}}`).",
+              "item": [
+                {
+                  "name": "Health",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{productServiceBaseUrl}}/actuator/health",
+                      "host": [
+                        "{{productServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "health"
+                      ]
+                    },
+                    "description": "**product-service (8081)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Info",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{productServiceBaseUrl}}/actuator/info",
+                      "host": [
+                        "{{productServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "info"
+                      ]
+                    },
+                    "description": "**product-service (8081)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Metrics",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{productServiceBaseUrl}}/actuator/metrics",
+                      "host": [
+                        "{{productServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "metrics"
+                      ]
+                    },
+                    "description": "**product-service (8081)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Prometheus",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{productServiceBaseUrl}}/actuator/prometheus",
+                      "host": [
+                        "{{productServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "prometheus"
+                      ]
+                    },
+                    "description": "**product-service (8081)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "InventoryService",
+              "description": "Spring Boot Actuator for **inventory-service (8082)** (`{{inventoryServiceBaseUrl}}`).",
+              "item": [
+                {
+                  "name": "Health",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{inventoryServiceBaseUrl}}/actuator/health",
+                      "host": [
+                        "{{inventoryServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "health"
+                      ]
+                    },
+                    "description": "**inventory-service (8082)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Info",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{inventoryServiceBaseUrl}}/actuator/info",
+                      "host": [
+                        "{{inventoryServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "info"
+                      ]
+                    },
+                    "description": "**inventory-service (8082)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Metrics",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{inventoryServiceBaseUrl}}/actuator/metrics",
+                      "host": [
+                        "{{inventoryServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "metrics"
+                      ]
+                    },
+                    "description": "**inventory-service (8082)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Prometheus",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{inventoryServiceBaseUrl}}/actuator/prometheus",
+                      "host": [
+                        "{{inventoryServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "prometheus"
+                      ]
+                    },
+                    "description": "**inventory-service (8082)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "OrderService",
+              "description": "Spring Boot Actuator for **order-service (8083)** (`{{orderServiceBaseUrl}}`).",
+              "item": [
+                {
+                  "name": "Health",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{orderServiceBaseUrl}}/actuator/health",
+                      "host": [
+                        "{{orderServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "health"
+                      ]
+                    },
+                    "description": "**order-service (8083)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Info",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{orderServiceBaseUrl}}/actuator/info",
+                      "host": [
+                        "{{orderServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "info"
+                      ]
+                    },
+                    "description": "**order-service (8083)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Metrics",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{orderServiceBaseUrl}}/actuator/metrics",
+                      "host": [
+                        "{{orderServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "metrics"
+                      ]
+                    },
+                    "description": "**order-service (8083)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Prometheus",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{orderServiceBaseUrl}}/actuator/prometheus",
+                      "host": [
+                        "{{orderServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "prometheus"
+                      ]
+                    },
+                    "description": "**order-service (8083)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                }
+              ]
+            }
+          ]
         }
       ]
     },

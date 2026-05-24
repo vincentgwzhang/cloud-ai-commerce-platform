@@ -14,6 +14,7 @@ public record OrderCreatedEvent(
         int quantity,
         BigDecimal amount,
         String requestId,
+        String traceId,
         Instant timestamp
 ) {
 }

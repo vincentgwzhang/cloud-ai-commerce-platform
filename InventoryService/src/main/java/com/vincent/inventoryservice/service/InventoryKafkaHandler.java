@@ -2,6 +2,7 @@ package com.vincent.inventoryservice.service;
 
 import com.vincent.inventoryservice.exception.InsufficientInventoryException;
 import com.vincent.inventoryservice.kafka.InventoryEventPublisher;
+import com.vincent.inventoryservice.observability.BusinessEventLog;
 import com.vincent.inventoryservice.kafka.event.InventoryFailedEvent;
 import com.vincent.inventoryservice.kafka.event.InventoryReservedEvent;
 import com.vincent.inventoryservice.kafka.event.OrderCreatedEvent;
@@ -33,11 +34,12 @@ public class InventoryKafkaHandler {
             eventPublisher.publishReserved(
                     InventoryReservedEvent.of(event.orderNo(), event.productCode(), event.quantity())
             );
-            log.info("Reserved inventory for order {}", event.orderNo());
+            BusinessEventLog.info(log, "INVENTORY_RESERVED", event.orderNo(), event.productCode(), event.eventId());
         } catch (InsufficientInventoryException ex) {
             eventPublisher.publishFailed(
                     InventoryFailedEvent.of(event.orderNo(), event.productCode(), ex.getMessage())
             );
+            BusinessEventLog.info(log, "INVENTORY_FAILED", event.orderNo(), event.productCode(), event.eventId());
             log.warn("Reservation failed for order {}: {}", event.orderNo(), ex.getMessage());
         }
     }

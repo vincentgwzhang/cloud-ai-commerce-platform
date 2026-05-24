@@ -135,6 +135,11 @@
                         <exclude>**/service/InventoryConcurrencyDemoService.class</exclude>
                         <exclude>**/bootstrap/InventoryCacheWarmer.class</exclude>
                         <exclude>**/entity/**</exclude>
+                        <exclude>**/observability/**</exclude>
+                        <exclude>**/kafka/**</exclude>
+                        <exclude>**/config/KafkaConsumerConfig.class</exclude>
+                        <exclude>**/config/InventoryKafkaProperties.class</exclude>
+                        <exclude>**/service/InventoryKafkaHandler.class</exclude>
                     </excludes>
                 </configuration>
             </plugin>
