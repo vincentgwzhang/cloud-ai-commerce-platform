@@ -1,0 +1,15 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:host.docker.internal}:${DB_PORT:3306}/${DB_NAME:commerce_platform}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+
+  data:
+    redis:
+      host: ${REDIS_HOST:host.docker.internal}
+
+app:
+  jwt:
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:/app/keys/public.pem}

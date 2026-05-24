@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:inventory_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/test-schema.sql
+      data-locations: classpath:sql/test-data.sql
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+app:
+  jwt:
+    issuer: auth-service-test
+    public-key-path: classpath:keys/public.pem
+  inventory:
+    cache-key-prefix: "test:inventory:product:"
+    cache-ttl: PT5M
+    idempotency-prefix: "test:inventory:idempotency:"
+    idempotency-ttl: PT1H
+    lock-prefix: "test:inventory:lock:"
+    lock-ttl: PT10S
