@@ -13,5 +13,6 @@
 
     <modules>
         <module>AuthService</module>
+        <module>ProductService</module>
     </modules>
 </project>

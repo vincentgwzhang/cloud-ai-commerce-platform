@@ -42,4 +42,5 @@ exec docker run --rm \
   -e "DB_NAME=${DB_NAME}" \
   -e "DB_USERNAME=${DB_USERNAME}" \
   -e "DB_PASSWORD=${DB_PASSWORD}" \
+  -e SPRING_PROFILES_ACTIVE=docker \
   "${IMAGE}"

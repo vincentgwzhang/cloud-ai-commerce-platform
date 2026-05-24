@@ -73,6 +73,18 @@ class AuthApiIntegrationTest {
     }
 
     @Test
+    void loginIgnoresStaleBearerHeader() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header("Authorization", "Bearer not-a-valid-jwt")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"vincent","password":"123456"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
+    @Test
     void loginWithInvalidCredentialsReturns401() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

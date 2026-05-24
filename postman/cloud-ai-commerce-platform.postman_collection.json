@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "Cloud AI Commerce Platform",
-    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Login** — saves `accessToken` (JWT) and `refreshToken` (opaque) to collection + environment.\n2. **Refresh Token** — when the JWT expires, call refresh with `{{refreshToken}}`; response rotates both tokens (store the new `refreshToken`).\n3. **Validate Token** — checks the current `accessToken`.\n\n## Authorization header\n\nCollection pre-request script adds `Authorization: Bearer {{accessToken}}` when a token exists. Public routes (`/login`, `/refresh`, `/health`) ignore it. **Validate Token (missing token)** strips Authorization on purpose.\n\nRe-import after collection updates.",
+    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service → Login** — saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** — when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product Service** — run **Login** first; collection script sends `Authorization: Bearer {{accessToken}}` on all requests.\n\n## Authorization header\n\nCollection pre-request script adds Bearer when `accessToken` exists. Public routes ignore it. **Validate Token (missing token)** and **List Products (missing token)** strip Authorization on purpose.\n\nRe-import after collection updates.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -41,6 +41,11 @@
       "type": "string"
     },
     {
+      "key": "productServiceBaseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
       "key": "accessToken",
       "value": "",
       "type": "string"
@@ -74,6 +79,15 @@
           "name": "Login",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -101,6 +115,9 @@
             }
           ],
           "request": {
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
               {
@@ -125,6 +142,15 @@
           "name": "Refresh Token",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -147,6 +173,9 @@
             }
           ],
           "request": {
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
               {
@@ -249,6 +278,93 @@
               "path": ["api", "v1", "auth", "validate"]
             },
             "description": "Only request that **strips** Authorization (for testing 401). Expected HTTP 401."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Product Service",
+      "description": "Requires JWT from **Auth Service → Login** (ProductService on port 8081). Collection pre-request script adds Bearer automatically.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/products/health",
+              "host": ["{{productServiceBaseUrl}}"],
+              "path": ["api", "v1", "products", "health"]
+            },
+            "description": "Public health check. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+          },
+          "response": []
+        },
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/products",
+              "host": ["{{productServiceBaseUrl}}"],
+              "path": ["api", "v1", "products"]
+            },
+            "description": "Requires valid JWT. Returns seed catalog (iPhone 17, RTX 5090, PS6)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/products/1",
+              "host": ["{{productServiceBaseUrl}}"],
+              "path": ["api", "v1", "products", "1"]
+            },
+            "description": "Requires valid JWT. Product id=1 is iPhone 17 (Redis cache-aside)."
+          },
+          "response": []
+        },
+        {
+          "name": "Hot Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/products/hot",
+              "host": ["{{productServiceBaseUrl}}"],
+              "path": ["api", "v1", "products", "hot"]
+            },
+            "description": "Requires valid JWT. Preloaded hot product IDs (1, 2, 3)."
+          },
+          "response": []
+        },
+        {
+          "name": "List Products (missing token)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/products",
+              "host": ["{{productServiceBaseUrl}}"],
+              "path": ["api", "v1", "products"]
+            },
+            "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
           },
           "response": []
         }

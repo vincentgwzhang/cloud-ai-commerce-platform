@@ -39,10 +39,13 @@ chmod +x scripts/generate-rsa-keys.sh
 
 ### Run in IntelliJ
 
-1. Open the repo in IntelliJ (import `AuthService/pom.xml` as a Maven module, or open the root aggregator `pom.xml`).
+1. Open the **repository root** in IntelliJ (root `pom.xml` aggregates AuthService + ProductService).
 2. Set Project SDK to **JDK 25**.
-3. Run `com.vincent.authservice.AuthServiceApplication` (main class).
-4. Default URL: http://localhost:8080
+3. From repo root, run once: `../scripts/local-dev-setup.sh` (JWT keys + checklist).
+4. Run **`AuthService [local]`** from `.run/` (profile `local`, working dir `AuthService/`), **before** ProductService.
+5. Default URL: http://localhost:8080
+
+For ProductService on the same machine, see [repository README — Local development](../README.md#local-development-intellij--recommended).
 
 Quick check:
 
