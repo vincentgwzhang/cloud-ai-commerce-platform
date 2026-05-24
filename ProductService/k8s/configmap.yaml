@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product-service-config
+data:
+  SERVER_PORT: "8081"
+  SPRING_PROFILES_ACTIVE: "k8s"
+  JWT_PUBLIC_KEY_PATH: "file:/app/keys/public.pem"
+  DB_HOST: "mysql"
+  DB_PORT: "3306"
+  DB_NAME: "commerce_platform"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  JWT_ISSUER: "auth-service"
+  JWT_PUBLIC_KEY_PATH: "file:/app/keys/public.pem"

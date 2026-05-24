@@ -43,6 +43,12 @@ public class RsaKeyGenerator {
     }
 
     public void ensureKeysExist() throws IOException, NoSuchAlgorithmException {
+        if (keyLocationResolver.exists(jwtProperties.privateKeyPath())
+                && keyLocationResolver.exists(jwtProperties.publicKeyPath())) {
+            log.info("Using existing JWT keys (no generation)");
+            return;
+        }
+
         Optional<Path> privateKeyPath = keyLocationResolver.resolveWritablePath(jwtProperties.privateKeyPath());
         Optional<Path> publicKeyPath = keyLocationResolver.resolveWritablePath(jwtProperties.publicKeyPath());
 
@@ -68,7 +74,10 @@ public class RsaKeyGenerator {
             return;
         }
 
-        Files.createDirectories(privateKeyPath.getParent());
+        Path parent = privateKeyPath.getParent();
+        if (parent != null && !Files.exists(parent)) {
+            Files.createDirectories(parent);
+        }
         KeyPair keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
 
         writePem(privateKeyPath, "PRIVATE KEY", keyPair.getPrivate().getEncoded());

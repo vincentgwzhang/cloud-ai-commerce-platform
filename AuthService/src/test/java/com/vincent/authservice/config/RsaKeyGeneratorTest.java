@@ -46,12 +46,21 @@ class RsaKeyGeneratorTest {
     }
 
     @Test
+    void skipsGenerationWhenKeysAlreadyExist() throws Exception {
+        JwtProperties properties = properties("file:/app/keys/private.pem", "file:/app/keys/public.pem");
+        generator = new RsaKeyGenerator(properties, keyLocationResolver);
+
+        when(keyLocationResolver.exists("file:/app/keys/private.pem")).thenReturn(true);
+        when(keyLocationResolver.exists("file:/app/keys/public.pem")).thenReturn(true);
+
+        generator.ensureKeysExist();
+    }
+
+    @Test
     void usesClasspathKeysWhenPresent() throws Exception {
         JwtProperties properties = properties("classpath:keys/private.pem", "classpath:keys/public.pem");
         generator = new RsaKeyGenerator(properties, keyLocationResolver);
 
-        when(keyLocationResolver.resolveWritablePath("classpath:keys/private.pem")).thenReturn(Optional.empty());
-        when(keyLocationResolver.resolveWritablePath("classpath:keys/public.pem")).thenReturn(Optional.empty());
         when(keyLocationResolver.exists("classpath:keys/private.pem")).thenReturn(true);
         when(keyLocationResolver.exists("classpath:keys/public.pem")).thenReturn(true);
 
@@ -63,10 +72,10 @@ class RsaKeyGeneratorTest {
         JwtProperties properties = properties("classpath:keys/private.pem", "classpath:keys/public.pem");
         generator = new RsaKeyGenerator(properties, keyLocationResolver);
 
-        when(keyLocationResolver.resolveWritablePath("classpath:keys/private.pem")).thenReturn(Optional.empty());
-        when(keyLocationResolver.resolveWritablePath("classpath:keys/public.pem")).thenReturn(Optional.empty());
         when(keyLocationResolver.exists("classpath:keys/private.pem")).thenReturn(false);
         when(keyLocationResolver.exists("classpath:keys/public.pem")).thenReturn(false);
+        when(keyLocationResolver.resolveWritablePath("classpath:keys/private.pem")).thenReturn(Optional.empty());
+        when(keyLocationResolver.resolveWritablePath("classpath:keys/public.pem")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> generator.ensureKeysExist())
                 .isInstanceOf(IllegalStateException.class)

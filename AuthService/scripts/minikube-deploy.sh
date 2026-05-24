@@ -40,8 +40,10 @@ fi
 echo "==> Phase 2: build image in Minikube Docker"
 eval "$(minikube docker-env)"
 
-echo "==> Building JAR + Docker image: ${IMAGE}"
-mvn -q -DskipTests package
+echo "==> mvn clean install"
+mvn clean install
+
+echo "==> Building Docker image: ${IMAGE}"
 docker build -t "${IMAGE}" .
 
 echo "==> Restoring host Docker context"

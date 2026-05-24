@@ -128,7 +128,32 @@ See `docker-compose.snippet.yml` for Redis + product-service.
 
 ---
 
-## 6. Tests
+## 6. Kubernetes (Minikube)
+
+Reuses **AuthService** secrets: `auth-service-secret`, `auth-service-jwt-keys`.
+
+Manifests: `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/minikube/configmap-host-mysql.yaml`. Host **MySQL + Redis** (OS): [scripts/minikube-host-services.md](../scripts/minikube-host-services.md).
+
+### Deploy (recommended)
+
+1. Deploy AuthService first: `cd ../AuthService && ./scripts/minikube-deploy.sh`
+2. Deploy ProductService:
+
+```bash
+cd ProductService
+chmod +x scripts/minikube-deploy.sh scripts/minikube-uninstall.sh
+./scripts/minikube-deploy.sh
+```
+
+`minikube-deploy.sh` runs **uninstall → mvn package → docker build in Minikube → apply** (same pattern as AuthService).
+
+Teardown only: `./scripts/minikube-uninstall.sh`
+
+Details: [k8s/minikube/README.md](k8s/minikube/README.md)
+
+---
+
+## 7. Tests
 
 ```bash
 mvn test verify
@@ -140,7 +165,7 @@ JaCoCo report: `target/site/jacoco/index.html`
 
 ---
 
-## 7. Configuration
+## 8. Configuration
 
 | Env | Default | Description |
 |-----|---------|-------------|

@@ -6,6 +6,7 @@ MySQL runs on your **host** (Ubuntu). Pods inside Minikube must use **`host.mini
 
 - `minikube start` completed
 - MySQL on host: `bind-address` allows remote (e.g. `0.0.0.0`), user `vincent@%` (see `scripts/grant-mysql-docker-access.sql`)
+- ProductService also needs **host Redis** reachable the same way — [minikube-host-services.md](../../../scripts/minikube-host-services.md)
 - RSA keys under `AuthService/data/keys/` (`./scripts/generate-rsa-keys.sh`)
 
 ## 1. Point Docker at Minikube’s daemon (build image Minikube can use)

@@ -102,6 +102,58 @@ class ProductCacheServiceTest {
                 .isInstanceOf(ProductNotFoundException.class);
     }
 
+    @Test
+    void getByIdReturnsPeerLoadedCacheWhenLockNotAcquired() throws Exception {
+        ProductResponse response = sampleResponse();
+        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        String json = mapper.writeValueAsString(response);
+        when(valueOperations.get("product:1")).thenReturn(null, null, json);
+        when(cacheLock.tryAcquire("product:1:lock")).thenReturn(null);
+
+        ProductResponse result = productCacheService.getById(1L);
+
+        assertThat(result.name()).isEqualTo("Product 1");
+        verify(productRepository, never()).findById(any());
+    }
+
+    @Test
+    void getByIdUsesDoubleCheckedCacheAfterLock() throws Exception {
+        ProductResponse response = ProductResponse.from(sampleEntity(2L));
+        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        when(valueOperations.get("product:2"))
+                .thenReturn(null)
+                .thenReturn(mapper.writeValueAsString(response));
+        when(cacheLock.tryAcquire("product:2:lock")).thenReturn("token-2");
+
+        ProductResponse result = productCacheService.getById(2L);
+
+        assertThat(result.id()).isEqualTo(2L);
+        verify(productRepository, never()).findById(any());
+        verify(cacheLock).release("product:2:lock", "token-2");
+    }
+
+    @Test
+    void getByIdEvictsInvalidCachePayload() throws Exception {
+        when(valueOperations.get("product:3")).thenReturn("{invalid-json");
+        when(cacheLock.tryAcquire("product:3:lock")).thenReturn("token-3");
+        when(productRepository.findById(3L)).thenReturn(Optional.of(sampleEntity(3L)));
+
+        ProductResponse result = productCacheService.getById(3L);
+
+        assertThat(result.id()).isEqualTo(3L);
+        verify(redisTemplate, org.mockito.Mockito.times(2)).delete("product:3");
+        verify(valueOperations).set(eq("product:3"), anyString(), eq(Duration.ofMinutes(10)));
+    }
+
+    @Test
+    void putWritesToCache() throws Exception {
+        ProductResponse response = sampleResponse();
+
+        productCacheService.put(response);
+
+        verify(valueOperations).set(eq("product:1"), anyString(), eq(Duration.ofMinutes(10)));
+    }
+
     private static Product sampleEntity(Long id) {
         Product product = new Product();
         product.setId(id);

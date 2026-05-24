@@ -4,6 +4,7 @@ metadata:
   name: auth-service-config
 data:
   SERVER_PORT: "8080"
+  SPRING_PROFILES_ACTIVE: "docker"
   DB_HOST: "mysql"
   DB_PORT: "3306"
   DB_NAME: "commerce_platform"

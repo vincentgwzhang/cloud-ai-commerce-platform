@@ -1,3 +1,4 @@
+# Active with SPRING_PROFILES_ACTIVE=k8s (see k8s/configmap.yaml).
 spring:
   config:
     activate:
@@ -6,3 +7,9 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
+app:
+  jwt:
+    issuer: ${JWT_ISSUER:auth-service}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:/app/keys/public.pem}
