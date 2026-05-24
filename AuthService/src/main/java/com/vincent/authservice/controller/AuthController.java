@@ -3,6 +3,7 @@ package com.vincent.authservice.controller;
 import com.vincent.authservice.dto.HealthResponse;
 import com.vincent.authservice.dto.LoginRequest;
 import com.vincent.authservice.dto.LoginResponse;
+import com.vincent.authservice.dto.RefreshTokenRequest;
 import com.vincent.authservice.dto.TokenValidationResponse;
 import com.vincent.authservice.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,9 +28,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user and issue JWT access token")
+    @Operation(summary = "Authenticate user and issue access and refresh tokens")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Rotate refresh token and issue a new access token")
+    public LoginResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return authService.refresh(request);
     }
 
     @GetMapping("/validate")

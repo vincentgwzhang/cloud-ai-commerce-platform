@@ -43,6 +43,17 @@ class JwtServiceTest {
     }
 
     @Test
+    void generateAccessTokenFromPrincipal() {
+        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+
+        String token = jwtService.generateAccessToken(principal);
+
+        Jwt jwt = jwtService.decodeAndValidate(token);
+        assertThat(jwtService.extractUsername(jwt)).isEqualTo("vincent");
+        assertThat(jwtService.extractRole(jwt)).isEqualTo("USER");
+    }
+
+    @Test
     void extractRoleReturnsNullWhenRolesMissing() {
         Jwt jwt = Jwt.withTokenValue("t")
                 .header("alg", "none")

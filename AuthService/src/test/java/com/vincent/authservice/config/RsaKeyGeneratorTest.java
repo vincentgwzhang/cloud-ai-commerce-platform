@@ -87,10 +87,10 @@ class RsaKeyGeneratorTest {
     }
 
     private static JwtProperties properties(Path privateKey, Path publicKey) {
-        return new JwtProperties("test-issuer", 3600L, privateKey.toString(), publicKey.toString());
+        return new JwtProperties("test-issuer", 3600L, 604800L, privateKey.toString(), publicKey.toString());
     }
 
     private static JwtProperties properties(String privateKey, String publicKey) {
-        return new JwtProperties("test-issuer", 3600L, privateKey, publicKey);
+        return new JwtProperties("test-issuer", 3600L, 604800L, privateKey, publicKey);
     }
 }

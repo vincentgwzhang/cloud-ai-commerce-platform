@@ -2,6 +2,7 @@ package com.vincent.authservice.controller;
 
 import com.vincent.authservice.dto.LoginRequest;
 import com.vincent.authservice.dto.LoginResponse;
+import com.vincent.authservice.dto.RefreshTokenRequest;
 import com.vincent.authservice.dto.TokenValidationResponse;
 import com.vincent.authservice.service.AuthService;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class AuthControllerTest {
     @Test
     void loginDelegatesToService() throws Exception {
         when(authService.login(any(LoginRequest.class)))
-                .thenReturn(new LoginResponse("token", "Bearer", 3600, "vincent", "USER"));
+                .thenReturn(new LoginResponse("token", "Bearer", 3600, "refresh", 604800, "vincent", "USER"));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -46,6 +47,33 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.username").value("vincent"));
 
         verify(authService).login(any(LoginRequest.class));
+    }
+
+    @Test
+    void refreshRejectsBlankRefreshToken() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":""}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refreshDelegatesToService() throws Exception {
+        when(authService.refresh(any(RefreshTokenRequest.class)))
+                .thenReturn(new LoginResponse("new-token", "Bearer", 3600, "new-refresh", 604800, "vincent", "USER"));
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"old-refresh"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("new-token"))
+                .andExpect(jsonPath("$.refreshToken").value("new-refresh"));
+
+        verify(authService).refresh(any(RefreshTokenRequest.class));
     }
 
     @Test

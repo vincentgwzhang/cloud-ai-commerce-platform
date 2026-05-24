@@ -4,7 +4,8 @@ metadata:
   name: auth-service-config
 data:
   SERVER_PORT: "8080"
-  DB_HOST: "mysql"
+  # Reach MySQL on the Ubuntu host from inside Minikube pods
+  DB_HOST: "host.minikube.internal"
   DB_PORT: "3306"
   DB_NAME: "commerce_platform"
   JWT_ISSUER: "auth-service"

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "Cloud AI Commerce Platform",
-    "description": "API collection for commerce platform microservices.\n\n## Authorization (every request)\n\n1. Run **Auth Service → Login**.\n2. `accessToken` is saved to collection + environment.\n3. **Collection Pre-request Script** adds `Authorization: Bearer <token>` to **every** HTTP request (including Health), when a token exists.\n4. Only **Validate Token (missing token)** opts out via its own pre-request script.\n\nRe-import this file if Postman still shows **No Auth** on Health.",
+    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Login** — saves `accessToken` (JWT) and `refreshToken` (opaque) to collection + environment.\n2. **Refresh Token** — when the JWT expires, call refresh with `{{refreshToken}}`; response rotates both tokens (store the new `refreshToken`).\n3. **Validate Token** — checks the current `accessToken`.\n\n## Authorization header\n\nCollection pre-request script adds `Authorization: Bearer {{accessToken}}` when a token exists. Public routes (`/login`, `/refresh`, `/health`) ignore it. **Validate Token (missing token)** strips Authorization on purpose.\n\nRe-import after collection updates.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -44,12 +44,17 @@
       "key": "accessToken",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
     {
       "name": "Auth Service",
-      "description": "All requests send `Authorization: Bearer {{accessToken}}` after Login (via collection pre-request script). Backend may ignore it on public routes.",
+      "description": "Recommended order: **Login** → **Refresh Token** (when JWT expires) → **Validate Token**.\n\nVariables: `accessToken` (Bearer JWT), `refreshToken` (body for `/refresh` only).",
       "item": [
         {
           "name": "Health",
@@ -76,12 +81,18 @@
                   "if (pm.response.code === 200) {",
                   "    const json = pm.response.json();",
                   "    const token = json.accessToken;",
+                  "    const refresh = json.refreshToken;",
                   "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('refreshToken', refresh);",
                   "    if (pm.environment) {",
                   "        pm.environment.set('accessToken', token);",
+                  "        pm.environment.set('refreshToken', refresh);",
                   "    }",
                   "    pm.test('accessToken saved for entire collection', function () {",
                   "        pm.expect(token).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "    pm.test('refreshToken saved for refresh endpoint', function () {",
+                  "        pm.expect(refresh).to.be.a('string').and.not.empty;",
                   "    });",
                   "    console.log('accessToken updated — next requests will send Authorization header.');",
                   "}"
@@ -106,7 +117,76 @@
               "host": ["{{authServiceBaseUrl}}"],
               "path": ["api", "v1", "auth", "login"]
             },
-            "description": "Run first (or when token expires). On success, saves `accessToken` for all other requests.\n\nSample users: `vincent` / `admin` / `tester` — password `123456`."
+            "description": "Run first (or to get a new session). On success, saves `accessToken` and `refreshToken`.\n\nWhen the JWT expires (~1h), use **Refresh Token** instead of logging in again.\n\nSample users: `vincent` / `admin` / `tester` — password `123456`."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "    if (pm.environment) {",
+                  "        pm.environment.set('accessToken', json.accessToken);",
+                  "        pm.environment.set('refreshToken', json.refreshToken);",
+                  "    }",
+                  "    pm.test('tokens rotated', function () {",
+                  "        pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                  "        pm.expect(json.refreshToken).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/refresh",
+              "host": ["{{authServiceBaseUrl}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Run after **Login** when `accessToken` is expired or before it expires to rotate refresh token.\n\n- Request body: `{ \"refreshToken\": \"{{refreshToken}}\" }` (no Bearer required).\n- On 200: overwrites `accessToken` and `refreshToken` — always use the latest refresh value.\n- Reusing an old refresh token returns 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token (invalid)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"not-a-valid-refresh-token\"\n}"
+            },
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/refresh",
+              "host": ["{{authServiceBaseUrl}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Expected HTTP 401 with message `Invalid refresh token`."
           },
           "response": []
         },
@@ -143,7 +223,7 @@
               "host": ["{{authServiceBaseUrl}}"],
               "path": ["api", "v1", "auth", "validate"]
             },
-            "description": "Requires valid token from **Login**. Expected: `{ \"valid\": true, ... }`"
+            "description": "Requires valid `accessToken` from **Login** or **Refresh Token**. Expected: `{ \"valid\": true, ... }`"
           },
           "response": []
         },

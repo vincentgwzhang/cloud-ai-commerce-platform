@@ -16,6 +16,7 @@ app:
   jwt:
     issuer: auth-service-test
     expiration-seconds: 3600
+    refresh-expiration-seconds: 604800
     private-key-path: classpath:keys/private.pem
     public-key-path: classpath:keys/public.pem
 

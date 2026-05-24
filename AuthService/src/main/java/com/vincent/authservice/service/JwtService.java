@@ -27,7 +27,10 @@ public class JwtService {
     }
 
     public String generateAccessToken(Authentication authentication) {
-        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+        return generateAccessToken((CustomUserDetails) authentication.getPrincipal());
+    }
+
+    public String generateAccessToken(CustomUserDetails principal) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(jwtProperties.expirationSeconds());
 

@@ -50,6 +50,14 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleRefreshTokenException() {
+        ResponseEntity<ErrorResponse> response =
+                handler.handleRefreshToken(new RefreshTokenException("Invalid refresh token"), request);
+
+        assertStatus(response, HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+    }
+
+    @Test
     void handleJwtException() {
         ResponseEntity<ErrorResponse> response =
                 handler.handleJwtException(new JwtException("expired"), request);

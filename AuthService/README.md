@@ -1,199 +1,283 @@
 # AuthService
 
-Stateless JWT authentication microservice for the commerce platform.
-
-All commands below are run from this directory:
+Stateless JWT authentication for the commerce platform. All paths below assume you are in this folder:
 
 ```bash
 cd AuthService
 ```
 
-## Stack
+**Prerequisites (all scenarios):** JDK 25, Maven 3.9+, MySQL 8.
 
-- Java 25
-- Spring Boot 4.0.6
-- Spring Cloud 2025.1.0
-- Spring Security 6 (stateless)
-- MySQL 8 + Spring Data JPA + HikariCP
-- JWT (RS256) via `NimbusJwtEncoder` / `NimbusJwtDecoder`
-- springdoc-openapi 3.x
+Default DB connection (IntelliJ / `application.yml`): `localhost:3306`, database `commerce_platform`, user `vincent`, password `1q2w3e4R`.
 
-## Prerequisites
+---
 
-- JDK 25
-- Maven 3.9+
-- MySQL 8 with database `commerce_platform`
+## 1. Git clone → run in IntelliJ (local)
 
-Initialize schema and users:
+### One-time: MySQL on your machine
 
 ```bash
+# Create database (if it does not exist)
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS commerce_platform;"
+
+# Schema + sample users (password for all users: 123456)
 mysql -u vincent -p commerce_platform < sql/init.sql
 ```
 
-If you already loaded the original seed file with placeholder BCrypt hashes:
+If you previously imported an old seed with invalid password hashes:
 
 ```bash
 mysql -u vincent -p commerce_platform < scripts/update-user-passwords.sql
 ```
 
-Generate RSA keys into `data/keys/` (or set `JWT_KEYS_DIR`):
+### One-time: JWT keys
 
 ```bash
+chmod +x scripts/generate-rsa-keys.sh
 ./scripts/generate-rsa-keys.sh
 ```
 
-On first startup, keys are also auto-generated when using default `file:./data/keys/*.pem` paths.
+### Run in IntelliJ
 
-## Configuration
+1. Open the repo in IntelliJ (import `AuthService/pom.xml` as a Maven module, or open the root aggregator `pom.xml`).
+2. Set Project SDK to **JDK 25**.
+3. Run `com.vincent.authservice.AuthServiceApplication` (main class).
+4. Default URL: http://localhost:8080
 
-Defaults in `src/main/resources/application.yml` support local, Docker, and Kubernetes via environment variables:
+Quick check:
 
-| Variable | Default |
-|----------|---------|
-| `SERVER_PORT` | `8080` |
-| `DB_HOST` | `localhost` |
-| `DB_PORT` | `3306` |
-| `DB_NAME` | `commerce_platform` |
-| `DB_USERNAME` | `vincent` |
-| `DB_PASSWORD` | `1q2w3e4R` |
-| `JWT_EXPIRATION_SECONDS` | `3600` |
-| `JWT_PRIVATE_KEY_PATH` | `file:./data/keys/private.pem` |
-| `JWT_PUBLIC_KEY_PATH` | `file:./data/keys/public.pem` |
-| `JWT_KEYS_DIR` | (script only) output directory for `generate-rsa-keys.sh` |
+```bash
+curl -s http://localhost:8080/api/v1/auth/health
 
-## Run locally
+# Full token flow (login → refresh → validate)
+LOGIN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"vincent","password":"123456"}')
+ACCESS=$(echo "$LOGIN" | jq -r .accessToken)
+REFRESH=$(echo "$LOGIN" | jq -r .refreshToken)
+REFRESHED=$(curl -s -X POST http://localhost:8080/api/v1/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d "{\"refreshToken\":\"$REFRESH\"}")
+ACCESS=$(echo "$REFRESHED" | jq -r .accessToken)
+curl -s http://localhost:8080/api/v1/auth/validate -H "Authorization: Bearer $ACCESS"
+```
+
+Or from terminal instead of the IDE:
 
 ```bash
 mvn spring-boot:run
 ```
 
-## Tests & coverage
+---
 
-Tests use an in-memory H2 database (`test` profile) and classpath RSA keys under `src/test/resources/keys/`.
+## 2. Git clone → run with Docker (MySQL on host)
 
-```bash
-mvn test verify
-```
+MySQL stays on your Ubuntu host; the container uses `host.docker.internal` (see `scripts/docker-run.sh`).
 
-JaCoCo enforces **≥ 85% line coverage** on non-excluded code (DTOs, main class, and `PasswordHashGenerator` are excluded). Report:
-
-```text
-target/site/jacoco/index.html
-```
-
-Current coverage is ~98% lines after the test suite.
-
-## API
-
-### Login
+### One-time: allow Docker to use MySQL user `vincent`
 
 ```bash
-curl -s -X POST http://localhost:8080/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"vincent","password":"123456"}'
+sudo mysql < scripts/grant-mysql-docker-access.sql
 ```
 
-### Validate token
+### Build and run
 
 ```bash
-TOKEN="<accessToken from login>"
-curl -s http://localhost:8080/api/v1/auth/validate \
-  -H "Authorization: Bearer ${TOKEN}"
-```
-
-### Health
-
-```bash
-curl -s http://localhost:8080/api/v1/auth/health
-```
-
-### Swagger UI
-
-http://localhost:8080/swagger-ui.html
-
-## Docker
-
-MySQL on the **Ubuntu host** + app in **Docker** → do **not** use `DB_HOST=localhost` inside the container.  
-`localhost` in the container means the container itself, not your machine → `Connection refused`.
-
-### Build
-
-```bash
-mvn -DskipTests package
-./scripts/generate-rsa-keys.sh   # ensures data/keys/*.pem exist for the image
-docker build -t auth-service:1.0 .
-```
-
-### Run (recommended)
-
-```bash
-chmod +x scripts/docker-run.sh
+chmod +x scripts/docker-run.sh scripts/generate-rsa-keys.sh
+./scripts/generate-rsa-keys.sh
 ./scripts/docker-run.sh
 ```
 
-Equivalent manual command:
+`docker-run.sh` removes any existing `auth-service` container and `auth-service:1.0.0` image, runs `mvn -DskipTests package`, rebuilds the image, then starts the container. Override names with `AUTH_SERVICE_CONTAINER` / `AUTH_SERVICE_IMAGE` if needed.
 
 ```bash
-docker run --rm -p 8080:8080 \
-  --add-host=host.docker.internal:host-gateway \
-  -e DB_HOST=host.docker.internal \
-  -e DB_USERNAME=vincent \
-  -e DB_PASSWORD=1q2w3e4R \
-  auth-service:1.0
+# Manual build only (optional)
+mvn -DskipTests package
+docker build -t auth-service:1.0.0 .
 ```
 
-Optional: `-e SPRING_PROFILES_ACTIVE=docker` uses `application-docker.yml` defaults.
+Health check: http://localhost:8080/api/v1/auth/health
 
-### If MySQL still unreachable
+---
 
-1. On the host, confirm MySQL listens beyond 127.0.0.1:
-   ```bash
-   ss -tlnp | grep 3306
-   ```
-   If only `127.0.0.1:3306`, set `bind-address = 0.0.0.0` in MySQL config and restart MySQL.
+## 3. Git clone → deploy to Minikube and test
 
-2. **MySQL user must allow Docker IPs** (not only `localhost`). If you see:
-   `Host '172.17.0.x' is not allowed to connect to this MySQL server`
-   run on the host:
-   ```bash
-   sudo mysql < scripts/grant-mysql-docker-access.sql
-   ```
-   Check: `vincent` should have a row with `host` = `%` (see `SELECT user, host FROM mysql.user WHERE user='vincent';`).
+Assumes **MySQL on the host** (same as above) and **Minikube** installed.
 
-3. Test from a throwaway container:
-   ```bash
-   docker run --rm --add-host=host.docker.internal:host-gateway mysql:8 \
-     mysql -h host.docker.internal -u vincent -p1q2w3e4R -e "SELECT 1"
-   ```
-
-## Kubernetes
-
-Manifests under `k8s/`:
+### One-time
 
 ```bash
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/secret.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
+minikube start
+sudo mysql < scripts/grant-mysql-docker-access.sql
+chmod +x scripts/minikube-deploy.sh scripts/minikube-uninstall.sh
 ```
 
-Populate `auth-service-jwt-keys` with base64-encoded PEM files before production deploy.
+### Deploy (uninstall + build + apply — single command)
 
-## Project layout
-
-```text
-src/main/java/com/vincent/authservice/
-  controller/
-  service/
-  repository/
-  entity/
-  dto/
-  security/
-  config/
-  exception/
+```bash
+./scripts/minikube-deploy.sh
 ```
 
-## Generate BCrypt password hash
+Teardown only (optional):
+
+```bash
+./scripts/minikube-uninstall.sh
+```
+
+### Test
+
+Get a URL:
+
+```bash
+minikube service auth-service --url
+```
+
+Or port-forward:
+
+```bash
+kubectl port-forward svc/auth-service 8080:80
+```
+
+Then (replace host if using `minikube service` URL):
+
+```bash
+# Health
+curl -s http://localhost:8080/api/v1/auth/health
+
+# Login (saves accessToken + refreshToken in the JSON response)
+curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"vincent","password":"123456"}'
+
+# Refresh (paste refreshToken from login; response includes a NEW refreshToken)
+curl -s -X POST http://localhost:8080/api/v1/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<refreshToken>"}'
+
+# Validate (paste accessToken from login or refresh)
+curl -s http://localhost:8080/api/v1/auth/validate \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+Postman collection (optional): `../postman/cloud-ai-commerce-platform.postman_collection.json`
+
+More detail: [k8s/minikube/README.md](k8s/minikube/README.md)
+
+---
+
+## 4. Main API endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/auth/health` | No | Service health `{ "status": "UP" }` |
+| `POST` | `/api/v1/auth/login` | No | Body: `{ "username", "password" }` → access + refresh tokens |
+| `POST` | `/api/v1/auth/refresh` | No | Body: `{ "refreshToken" }` → new access + refresh tokens (rotation) |
+| `GET` | `/api/v1/auth/validate` | Bearer token | Validates JWT, returns user + role |
+
+**Login** request example:
+
+```json
+{ "username": "vincent", "password": "123456" }
+```
+
+**Login** response example:
+
+```json
+{
+  "accessToken": "<jwt>",
+  "tokenType": "Bearer",
+  "expiresIn": 3600,
+  "refreshToken": "<opaque>",
+  "refreshExpiresIn": 604800,
+  "username": "vincent",
+  "role": "USER"
+}
+```
+
+**Refresh** request example:
+
+```json
+{ "refreshToken": "<opaque from login>" }
+```
+
+Returns the same shape as login. Each refresh revokes the presented refresh token and issues a new pair.
+
+**Validate** header:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+### Refresh token flow
+
+Two token types are issued on login:
+
+| Token | Format | Lifetime (default) | Use |
+|-------|--------|-------------------|-----|
+| **Access** | RS256 JWT | 1 hour (`JWT_EXPIRATION_SECONDS`) | `Authorization: Bearer …` on protected APIs |
+| **Refresh** | Opaque string (stored in MySQL `refresh_tokens`) | 7 days (`JWT_REFRESH_EXPIRATION_SECONDS`) | Body of `POST /api/v1/auth/refresh` only |
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant AuthService
+    participant MySQL
+
+    Client->>AuthService: POST /login
+    AuthService->>MySQL: revoke old refresh tokens for user
+    AuthService->>MySQL: insert new refresh token
+    AuthService-->>Client: accessToken + refreshToken
+
+    Note over Client: access JWT expires (~1h)
+
+    Client->>AuthService: POST /refresh { refreshToken }
+    AuthService->>MySQL: revoke presented token
+    AuthService->>MySQL: insert new refresh token
+    AuthService-->>Client: new accessToken + new refreshToken
+
+    Client->>AuthService: GET /validate (Bearer accessToken)
+    AuthService-->>Client: valid, username, role
+```
+
+**Rules:**
+
+- **Rotation:** each successful refresh invalidates the refresh token you sent; you must store the new `refreshToken` from the response.
+- **Reuse:** calling refresh again with an old refresh token returns `401` (`Invalid refresh token`).
+- **Re-login:** a new login revokes all active refresh tokens for that user (single active session per login policy).
+- **No Bearer on refresh:** send only JSON `{ "refreshToken": "…" }`; the endpoint is public.
+
+**When access token expires:** call `/refresh` with the latest `refreshToken` — do not log in again unless the refresh token is expired or revoked.
+
+**Configuration** (`application.yml` / env):
+
+| Property | Env var | Default |
+|----------|---------|---------|
+| `app.jwt.expiration-seconds` | `JWT_EXPIRATION_SECONDS` | `3600` |
+| `app.jwt.refresh-expiration-seconds` | `JWT_REFRESH_EXPIRATION_SECONDS` | `604800` (7 days) |
+
+---
+
+## 5. Swagger UI
+
+With the app running (IntelliJ, Docker, or Minikube port-forward):
+
+http://localhost:8080/swagger-ui.html
+
+OpenAPI JSON: http://localhost:8080/v3/api-docs
+
+---
+
+## 6. Passwords and sample users
+
+### Sample users (after `sql/init.sql`)
+
+| Username | Password | Role |
+|----------|----------|------|
+| vincent | 123456 | USER |
+| admin | 123456 | ADMIN |
+| tester | 123456 | USER |
+
+### Generate a BCrypt hash (for new SQL seed data)
 
 ```bash
 mvn -q exec:java \
@@ -201,10 +285,40 @@ mvn -q exec:java \
   -Dexec.args=your-password
 ```
 
-## Sample users (after sql/init.sql)
+Use the printed hash in `INSERT` statements for the `users.password` column.
 
-| Username | Password | Role |
-|----------|----------|------|
-| vincent | 123456 | USER |
-| admin | 123456 | ADMIN |
-| tester | 123456 | USER |
+---
+
+## 7. Tests and coverage
+
+From `AuthService/`:
+
+```bash
+mvn test verify
+```
+
+- **Unit tests:** `AuthServiceTest`, `RefreshTokenServiceTest`, `JwtServiceTest`, `AuthControllerTest`, `GlobalExceptionHandlerTest`, …
+- **Integration tests:** `AuthApiIntegrationTest` (login, refresh rotation, validate, error paths)
+
+JaCoCo report (line coverage gate ≥ 85%):
+
+```bash
+# HTML report
+xdg-open target/site/jacoco/index.html   # Linux
+open target/site/jacoco/index.html       # macOS
+```
+
+Refresh-related coverage includes: token issue/revoke/rotate in `RefreshTokenService`, login + refresh orchestration in `AuthService`, and HTTP flows in `AuthApiIntegrationTest`.
+
+---
+
+## 8. Postman (refresh token)
+
+Collection: `../postman/cloud-ai-commerce-platform.postman_collection.json`
+
+1. Import collection (+ optional `../postman/cloud-ai-commerce-platform.local.postman_environment.json`).
+2. Run **Auth Service → Login** — saves `accessToken` and `refreshToken` to collection/environment variables.
+3. Run **Auth Service → Refresh Token** — rotates tokens and updates both variables (use this when the JWT expires).
+4. Run **Validate Token** — uses the current `accessToken` from step 2 or 3.
+
+See repository root [README.md](../README.md#postman) for import steps.
