@@ -122,7 +122,7 @@ Errors match AuthService shape (`timestamp`, `status`, `error`, `message`, `path
 ../devops/script/ProductService/docker-run.sh
 ```
 
-See `docker-compose.snippet.yml` for Redis + product-service.
+Uses host MySQL/Redis via `host.docker.internal` (same as AuthService Docker). Keys from `devops/data/keys/` (run `../devops/script/local-dev-setup.sh` first).
 
 ---
 

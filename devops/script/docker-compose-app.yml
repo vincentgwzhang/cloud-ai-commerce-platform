@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  kafka:
+    image: apache/kafka:4.1.2
+    container_name: kafka
+    hostname: kafka
+    ports:
+      # 给宿主机 Spring Boot 用
+      - "9092:9092"
+    environment:
+      # ===== KRaft mode =====
+      KAFKA_ENABLE_KRAFT: "true"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+
+      # ===== Listeners =====
+      # EXTERNAL: 宿主机
+      # INTERNAL: Docker 内（Kafka UI）
+      KAFKA_LISTENERS: >
+        EXTERNAL://0.0.0.0:9092,
+        INTERNAL://0.0.0.0:29092,
+        CONTROLLER://0.0.0.0:9093
+
+      KAFKA_ADVERTISED_LISTENERS: >
+        EXTERNAL://localhost:9092,
+        INTERNAL://kafka:29092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: >
+        EXTERNAL:PLAINTEXT,
+        INTERNAL:PLAINTEXT,
+        CONTROLLER:PLAINTEXT
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+
+      # ===== Single-node friendly =====
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 5
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # ===== Flush aggressively (实验友好) =====
+      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 1
+      KAFKA_LOG_FLUSH_INTERVAL_MS: 1
+
+      # ===== JVM =====
+      KAFKA_HEAP_OPTS:
+
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "18080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local-kafka
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      DYNAMIC_CONFIG_ENABLED: "false"
+
+volumes:
+  kafka_data:
