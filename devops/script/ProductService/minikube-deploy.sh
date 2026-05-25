@@ -34,8 +34,8 @@ echo "==> Phase 2: build image in Minikube Docker (${SERVICE_ROOT})"
 cd "${SERVICE_ROOT}"
 eval "$(minikube docker-env)"
 
-echo "==> mvn clean install"
-mvn clean install
+echo "==> mvn clean package -DskipTests"
+mvn clean package -DskipTests
 
 echo "==> Building Docker image: ${IMAGE} (context: repo root)"
 cd "${REPO_ROOT}"

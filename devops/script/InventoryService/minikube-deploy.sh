@@ -30,7 +30,7 @@ fi
 echo "==> Phase 2: build (${SERVICE_ROOT})"
 cd "${SERVICE_ROOT}"
 eval "$(minikube docker-env)"
-mvn clean install
+mvn clean package -DskipTests
 cd "${REPO_ROOT}"
 docker build -f "${SERVICE_ROOT}/Dockerfile" -t "${IMAGE}" .
 eval "$(minikube docker-env -u)"

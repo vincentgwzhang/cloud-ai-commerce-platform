@@ -1,0 +1,48 @@
+# Prometheus + Grafana — scrape Minikube apps (NodePort + Docker network "minikube").
+# Standalone project; run alongside docker-compose-app.yml.
+#
+# Prerequisites:
+#   ./observability/minikube-metrics-apply.sh
+#
+#   docker compose -f docker-compose-observability-minikube.yml up -d
+name: commerce-observability-minikube
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: prometheus-minikube
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../observability/prometheus.minikube.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    networks:
+      - default
+      - minikube
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana-minikube
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_UID: commerce-overview
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+
+networks:
+  minikube:
+    external: true
+
+volumes:
+  grafana_data:

@@ -1,4 +1,9 @@
-version: "3.8"
+# Kafka + Kafka UI (host / Minikube workloads connect to localhost:9092).
+#
+# Observability is separate — pick one:
+#   Local IntelliJ:  docker compose -f docker-compose-observability-local.yml up -d
+#   Minikube apps:   docker compose -f docker-compose-observability-minikube.yml up -d
+name: commerce-app
 
 services:
   kafka:

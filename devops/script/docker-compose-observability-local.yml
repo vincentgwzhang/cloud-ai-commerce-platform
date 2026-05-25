@@ -1,0 +1,40 @@
+# Prometheus + Grafana — scrape Spring Boot on host (IntelliJ / docker-run.sh).
+# Standalone project; run alongside docker-compose-app.yml.
+#
+#   docker compose -f docker-compose-observability-local.yml up -d
+name: commerce-observability-local
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: prometheus-local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana-local
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_UID: commerce-overview
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  grafana_data:

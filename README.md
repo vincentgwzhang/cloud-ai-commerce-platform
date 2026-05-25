@@ -103,3 +103,26 @@ Import at repository root:
 4. Start **ProductService** (8081), run **Product Service → List Products**.
 5. Start **InventoryService** (8082), run **Inventory Service → Get Inventory** (seed SKU `IPHONE17`).
 6. When the JWT expires (~1 h), run **Auth Service → Refresh Token** — updates both tokens.
+
+## 如果在 minikube 上面运行
+### 1. 部署所有微服务到 Minikube
+./devops/script/install.sh
+
+### 2. 创建 metrics 用的 NodePort（让 Prometheus 能抓到指标，无需 port-forward）
+./devops/script/observability/minikube-metrics-apply.sh
+
+### 3. 启动基础设施与监控（两个 compose，可各开 terminal）
+```bash
+# Terminal A — Kafka
+docker compose -f devops/script/docker-compose-app.yml up -d
+
+# Terminal B — Prometheus + Grafana（抓 Minikube 指标）
+docker compose -f devops/script/docker-compose-observability-minikube.yml up -d
+```
+Grafana: http://localhost:3000（admin / admin）
+
+## 如果在 Intellij 上运行
+```bash
+docker compose -f devops/script/docker-compose-app.yml up -d
+docker compose -f devops/script/docker-compose-observability-local.yml up -d
+```

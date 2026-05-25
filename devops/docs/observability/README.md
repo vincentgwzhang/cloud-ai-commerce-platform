@@ -30,7 +30,18 @@ Login stays on **Auth (8080)**. Use the same `X-Request-Id` on downstream calls 
 | `/actuator/metrics` | Metric names |
 | `/actuator/prometheus` | Prometheus scrape |
 
+## Grafana (local)
+
+```bash
+docker compose -f devops/script/docker-compose-observability-local.yml up -d
+# Grafana http://localhost:3000 — admin / admin
+```
+
+Pre-provisioned dashboard **Commerce Platform Overview** shows all service metrics. See [Grafana setup](../../observability/README.md).
+
 ## Docs
 
 - [Metrics naming](metrics-naming.md)
 - [Local validation](local-validation.md)
+- [Grafana + Prometheus](../../observability/README.md)
+- [Minikube + Grafana (no port-forward)](minikube-grafana.md)

@@ -42,6 +42,16 @@ Expect `db`, `redis`, and (for Order/Inventory) `kafka` components when infrastr
 
 Repeat a protected endpoint; requests slower than ~1s log `Slow HTTP request` at WARN.
 
+## 6. Grafana dashboard
+
+```bash
+docker compose -f devops/script/docker-compose-observability-local.yml up -d
+```
+
+Open http://localhost:3000 (admin / admin). Home dashboard **Commerce Platform Overview** shows all five services.
+
+Verify Prometheus targets: http://localhost:9090/targets — all jobs should be **UP** while apps run on host.
+
 ## Troubleshooting
 
 | Symptom | Check |
