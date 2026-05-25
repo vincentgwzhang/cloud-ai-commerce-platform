@@ -1,0 +1,19 @@
+{{- if .Values.services.product.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product-service-config
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "product-service") | nindent 4 }}
+data:
+  SERVER_PORT: {{ .Values.services.product.containerPort | quote }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.services.product.springProfilesActive | quote }}
+  JWT_PUBLIC_KEY_PATH: {{ .Values.jwt.publicKeyPath | quote }}
+  JWT_ISSUER: {{ .Values.jwt.issuer | quote }}
+  DB_HOST: {{ .Values.dependencies.mysql.host | quote }}
+  DB_PORT: {{ .Values.dependencies.mysql.port | quote }}
+  DB_NAME: {{ .Values.dependencies.mysql.database | quote }}
+  REDIS_HOST: {{ .Values.dependencies.redis.host | quote }}
+  REDIS_PORT: {{ .Values.dependencies.redis.port | quote }}
+{{- end }}

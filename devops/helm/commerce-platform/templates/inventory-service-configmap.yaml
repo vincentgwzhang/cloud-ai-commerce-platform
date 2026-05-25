@@ -1,0 +1,20 @@
+{{- if .Values.services.inventory.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-service-config
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "inventory-service") | nindent 4 }}
+data:
+  SERVER_PORT: {{ .Values.services.inventory.containerPort | quote }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.services.inventory.springProfilesActive | quote }}
+  JWT_PUBLIC_KEY_PATH: {{ .Values.jwt.publicKeyPath | quote }}
+  JWT_ISSUER: {{ .Values.jwt.issuer | quote }}
+  DB_HOST: {{ .Values.dependencies.mysql.host | quote }}
+  DB_PORT: {{ .Values.dependencies.mysql.port | quote }}
+  DB_NAME: {{ .Values.dependencies.mysql.database | quote }}
+  REDIS_HOST: {{ .Values.dependencies.redis.host | quote }}
+  REDIS_PORT: {{ .Values.dependencies.redis.port | quote }}
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.dependencies.kafka.bootstrapServers | quote }}
+{{- end }}

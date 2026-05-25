@@ -1,0 +1,17 @@
+{{- if .Values.services.gateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "gateway-service") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "commerce-platform.selectorLabels" (dict "root" . "appName" "gateway-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.services.gateway.servicePort }}
+      targetPort: {{ .Values.services.gateway.containerPort }}
+{{- end }}

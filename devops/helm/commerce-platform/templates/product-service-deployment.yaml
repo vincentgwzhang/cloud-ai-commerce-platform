@@ -1,0 +1,50 @@
+{{- if .Values.services.product.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "product-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.product.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "commerce-platform.selectorLabels" (dict "root" . "appName" "product-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "commerce-platform.selectorLabels" (dict "root" . "appName" "product-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: product-service
+          image: {{ include "commerce-platform.image" .Values.services.product.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.product.containerPort }}
+          envFrom:
+            - configMapRef:
+                name: product-service-config
+            - secretRef:
+                name: {{ .Values.secrets.dbSecretName }}
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.services.product.probes.path }}
+              port: {{ .Values.services.product.containerPort }}
+            initialDelaySeconds: {{ .Values.services.product.probes.readinessInitialDelaySeconds }}
+            periodSeconds: {{ .Values.services.product.probes.readinessPeriodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.services.product.probes.path }}
+              port: {{ .Values.services.product.containerPort }}
+            initialDelaySeconds: {{ .Values.services.product.probes.livenessInitialDelaySeconds }}
+            periodSeconds: {{ .Values.services.product.probes.livenessPeriodSeconds }}
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: {{ .Values.secrets.jwtKeysSecretName }}
+{{- end }}

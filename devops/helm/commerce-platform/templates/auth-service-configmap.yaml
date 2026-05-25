@@ -1,0 +1,20 @@
+{{- if .Values.services.auth.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "auth-service") | nindent 4 }}
+data:
+  SERVER_PORT: {{ .Values.services.auth.containerPort | quote }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.services.auth.springProfilesActive | quote }}
+  DB_HOST: {{ .Values.dependencies.mysql.host | quote }}
+  DB_PORT: {{ .Values.dependencies.mysql.port | quote }}
+  DB_NAME: {{ .Values.dependencies.mysql.database | quote }}
+  JWT_ISSUER: {{ .Values.jwt.issuer | quote }}
+  JWT_EXPIRATION_SECONDS: {{ .Values.jwt.expirationSeconds | quote }}
+  JWT_REFRESH_EXPIRATION_SECONDS: {{ .Values.jwt.refreshExpirationSeconds | quote }}
+  JWT_PRIVATE_KEY_PATH: {{ .Values.jwt.privateKeyPath | quote }}
+  JWT_PUBLIC_KEY_PATH: {{ .Values.jwt.publicKeyPath | quote }}
+{{- end }}

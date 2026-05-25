@@ -126,3 +126,17 @@ Grafana: http://localhost:3000（admin / admin）
 docker compose -f devops/script/docker-compose-app.yml up -d
 docker compose -f devops/script/docker-compose-observability-local.yml up -d
 ```
+
+## 如果要使用 HELM 的方式
+```sh
+minikube start
+
+# 可选：打 tgz 包
+devops/helm/helm-package.sh
+
+# 安装（内部先跑 helm-uninstall，再构建镜像 + helm install）
+devops/helm/helm-install.sh
+
+# 卸载（可反复与 install 交替）
+devops/helm/helm-uninstall.sh
+```

@@ -1,0 +1,17 @@
+{{- if .Values.services.gateway.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-service-config
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "gateway-service") | nindent 4 }}
+data:
+  SERVER_PORT: {{ .Values.services.gateway.containerPort | quote }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.services.gateway.springProfilesActive | quote }}
+  JWT_PUBLIC_KEY_PATH: {{ .Values.jwt.publicKeyPath | quote }}
+  JWT_ISSUER: {{ .Values.jwt.issuer | quote }}
+  PRODUCT_SERVICE_URI: {{ .Values.services.gateway.upstream.productServiceUri | quote }}
+  INVENTORY_SERVICE_URI: {{ .Values.services.gateway.upstream.inventoryServiceUri | quote }}
+  ORDER_SERVICE_URI: {{ .Values.services.gateway.upstream.orderServiceUri | quote }}
+{{- end }}

@@ -1,0 +1,17 @@
+{{- if .Values.services.product.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "product-service") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "commerce-platform.selectorLabels" (dict "root" . "appName" "product-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.services.product.servicePort }}
+      targetPort: {{ .Values.services.product.containerPort }}
+{{- end }}

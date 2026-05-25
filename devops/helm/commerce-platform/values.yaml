@@ -1,0 +1,118 @@
+# Default values — pods reach host services via host.minikube.internal.
+# You run MySQL/Redis/Kafka on the host (e.g. 127.0.0.1:3306 / :6379 / :9092).
+# Helm scripts do not start or stop those dependencies.
+
+namespace: default
+
+imagePullPolicy: IfNotPresent
+
+dependencies:
+  mysql:
+    host: host.minikube.internal
+    port: "3306"
+    database: commerce_platform
+  redis:
+    host: host.minikube.internal
+    port: "6379"
+  kafka:
+    bootstrapServers: host.minikube.internal:9092
+
+database:
+  username: vincent
+  password: 1q2w3e4R
+
+secrets:
+  jwtKeysSecretName: auth-service-jwt-keys
+  dbSecretName: auth-service-secret
+
+jwt:
+  issuer: auth-service
+  publicKeyPath: "file:/app/keys/public.pem"
+  privateKeyPath: "file:/app/keys/private.pem"
+  expirationSeconds: "3600"
+  refreshExpirationSeconds: "604800"
+
+services:
+  auth:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: auth-service
+      tag: "1.0.0"
+    containerPort: 8080
+    servicePort: 80
+    springProfilesActive: docker
+    probes:
+      path: /api/v1/auth/health
+      readinessInitialDelaySeconds: 15
+      readinessPeriodSeconds: 10
+      livenessInitialDelaySeconds: 30
+      livenessPeriodSeconds: 20
+
+  product:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: product-service
+      tag: "1.0.0"
+    containerPort: 8081
+    servicePort: 80
+    springProfilesActive: k8s
+    probes:
+      path: /api/v1/products/health
+      readinessInitialDelaySeconds: 20
+      readinessPeriodSeconds: 10
+      livenessInitialDelaySeconds: 40
+      livenessPeriodSeconds: 20
+
+  inventory:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: inventory-service
+      tag: "1.0.0"
+    containerPort: 8082
+    servicePort: 80
+    springProfilesActive: k8s
+    probes:
+      path: /api/inventory/health
+      readinessInitialDelaySeconds: 25
+      readinessPeriodSeconds: 10
+      livenessInitialDelaySeconds: 45
+      livenessPeriodSeconds: 20
+
+  order:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: order-service
+      tag: "1.0.0"
+    containerPort: 8083
+    servicePort: 80
+    springProfilesActive: k8s
+    probes:
+      path: /api/orders/health
+      readinessInitialDelaySeconds: 30
+      readinessPeriodSeconds: 10
+      livenessInitialDelaySeconds: 50
+      livenessPeriodSeconds: 20
+
+  gateway:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: gateway-service
+      tag: "1.0.0"
+    containerPort: 8088
+    servicePort: 80
+    springProfilesActive: k8s
+    probes:
+      path: /api/gateway/health
+      readinessInitialDelaySeconds: 15
+      readinessPeriodSeconds: 10
+      livenessInitialDelaySeconds: 30
+      livenessPeriodSeconds: 20
+    upstream:
+      productServiceUri: http://product-service:80
+      inventoryServiceUri: http://inventory-service:80
+      orderServiceUri: http://order-service:80

@@ -1,0 +1,24 @@
+Commerce platform — full Helm release
+
+Release:   {{ .Release.Name }}
+Namespace: {{ include "commerce-platform.namespace" . }}
+
+Microservices in this chart:
+  - auth-service      (login / JWT)
+  - product-service
+  - inventory-service
+  - order-service
+  - gateway-service   (API entry)
+
+Host dependencies (you run these; not managed by Helm):
+  MySQL: {{ .Values.dependencies.mysql.host }}:{{ .Values.dependencies.mysql.port }}
+  Redis: {{ .Values.dependencies.redis.host }}:{{ .Values.dependencies.redis.port }}
+  Kafka: {{ .Values.dependencies.kafka.bootstrapServers }}
+
+Port-forward examples:
+  kubectl port-forward -n {{ include "commerce-platform.namespace" . }} svc/auth-service 8080:80
+  kubectl port-forward -n {{ include "commerce-platform.namespace" . }} svc/gateway-service 8088:80
+
+Install / uninstall:
+  devops/helm/helm-install.sh
+  devops/helm/helm-uninstall.sh

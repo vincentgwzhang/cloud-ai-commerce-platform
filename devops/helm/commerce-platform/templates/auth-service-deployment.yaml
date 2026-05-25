@@ -1,0 +1,50 @@
+{{- if .Values.services.auth.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "auth-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.auth.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "commerce-platform.selectorLabels" (dict "root" . "appName" "auth-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "commerce-platform.selectorLabels" (dict "root" . "appName" "auth-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: auth-service
+          image: {{ include "commerce-platform.image" .Values.services.auth.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.auth.containerPort }}
+          envFrom:
+            - configMapRef:
+                name: auth-service-config
+            - secretRef:
+                name: {{ .Values.secrets.dbSecretName }}
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.services.auth.probes.path }}
+              port: {{ .Values.services.auth.containerPort }}
+            initialDelaySeconds: {{ .Values.services.auth.probes.readinessInitialDelaySeconds }}
+            periodSeconds: {{ .Values.services.auth.probes.readinessPeriodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.services.auth.probes.path }}
+              port: {{ .Values.services.auth.containerPort }}
+            initialDelaySeconds: {{ .Values.services.auth.probes.livenessInitialDelaySeconds }}
+            periodSeconds: {{ .Values.services.auth.probes.livenessPeriodSeconds }}
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: {{ .Values.secrets.jwtKeysSecretName }}
+{{- end }}
