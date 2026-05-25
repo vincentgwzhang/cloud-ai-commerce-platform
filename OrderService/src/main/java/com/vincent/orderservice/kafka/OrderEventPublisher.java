@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  * <p>Decoupling: inventory-service subscribes to {@code order-created} instead of order-service
  * calling it synchronously — each service can scale and deploy independently.
  *
- * <p>TODO: outbox pattern — write event to outbox table in same DB transaction as order insert,
+ * <p>PENDING ITEM: outbox pattern — write event to outbox table in same DB transaction as order insert,
  * then a relay publishes to Kafka (avoids lost messages if broker is down after commit).
  */
 @Component

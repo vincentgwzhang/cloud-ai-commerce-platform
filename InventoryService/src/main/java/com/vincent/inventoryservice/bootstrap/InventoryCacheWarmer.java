@@ -1,7 +1,6 @@
 package com.vincent.inventoryservice.bootstrap;
 
 import com.vincent.inventoryservice.config.InventoryProperties;
-import com.vincent.inventoryservice.entity.Inventory;
 import com.vincent.inventoryservice.repository.InventoryRepository;
 import com.vincent.inventoryservice.service.InventoryService;
 import org.slf4j.Logger;

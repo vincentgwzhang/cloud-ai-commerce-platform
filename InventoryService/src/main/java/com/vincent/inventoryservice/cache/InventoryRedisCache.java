@@ -12,7 +12,7 @@ import java.util.Optional;
 /**
  * Redis-backed available stock counter — Redis-first path for high-concurrency reservation.
  *
- * <p>DB sync happens in the same transaction today; TODO: async batch flush to reduce write amplification.
+ * <p>DB sync happens in the same transaction today; async batch flush may be added later to reduce write amplification.
  */
 @Component
 public class InventoryRedisCache {

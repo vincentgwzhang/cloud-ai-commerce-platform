@@ -161,7 +161,7 @@ public class OrderService {
             Order saved = orderRepository.save(order);
             OrderResponse response = OrderResponse.from(saved);
 
-            // TODO: future outbox pattern — same transaction as insert
+            // PENDING ITEM: future outbox pattern — same transaction as insert
             OrderCreatedEvent createdEvent = OrderCreatedEvent.from(saved);
             eventPublisher.publishOrderCreated(createdEvent);
 

@@ -132,7 +132,8 @@ class OrderServiceTest {
     @Test
     void createOrderThrowsWhenDuplicateInProgress() {
         when(idempotencyStore.findPreviousResult("req-dup"))
-                .thenReturn(Optional.empty(), Optional.empty());
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.empty());
         when(idempotencyStore.tryClaim("req-dup")).thenReturn(false);
 
         assertThatThrownBy(() -> orderService.createOrder(new CreateOrderRequest("IPHONE17", 1, "req-dup")))

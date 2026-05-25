@@ -27,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class InventoryApiIntegrationTest {
 
     @Container
+    @SuppressWarnings("resource") // closed by Testcontainers after tests
     static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
             .withExposedPorts(6379);
 

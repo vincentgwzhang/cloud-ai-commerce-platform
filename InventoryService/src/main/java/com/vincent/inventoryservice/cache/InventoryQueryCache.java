@@ -5,8 +5,6 @@ import tools.jackson.databind.json.JsonMapper;
 import com.vincent.inventoryservice.config.InventoryProperties;
 import com.vincent.inventoryservice.dto.InventoryResponse;
 import com.vincent.inventoryservice.lock.InventoryDistributedLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -19,8 +17,6 @@ import java.util.function.Supplier;
  */
 @Component
 public class InventoryQueryCache {
-
-    private static final Logger log = LoggerFactory.getLogger(InventoryQueryCache.class);
 
     private final StringRedisTemplate redisTemplate;
     private final JsonMapper jsonMapper;

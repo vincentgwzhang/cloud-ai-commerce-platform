@@ -114,7 +114,7 @@ public class InventoryService {
             warmCacheIfNeeded(inventory);
 
             // Redis-first decrement — fewer pessimistic DB reads under burst traffic.
-            // TODO: batch/async DB flush to reduce write amplification at very high QPS.
+            // Batch/async DB flush may be added later to reduce write amplification at very high QPS.
             var cacheResult = inventoryRedisCache.tryAtomicDecrement(productCode, quantity);
             if (cacheResult.isEmpty()) {
                 inventoryRedisCache.putAvailable(productCode, inventory.getAvailableStock());
@@ -201,7 +201,7 @@ public class InventoryService {
             writeThroughCache(saved);
             InventoryResponse response = InventoryResponse.from(saved);
             idempotencyStore.saveResult(requestId, response);
-            // TODO: future Kafka event — inventory.deducted
+            //PENDING ITEM: future Kafka event — inventory.deducted
             return response;
         } finally {
             distributedLock.release(productCode, lockToken);
