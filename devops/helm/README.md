@@ -45,4 +45,8 @@ cd devops/helm
 ./helm-install.sh && ./helm-uninstall.sh && ./helm-install.sh
 ```
 
-Uninstall leaves host MySQL/Redis/Kafka running.
+Uninstall leaves host MySQL/Redis/Kafka running. It also removes `*-service-metrics` NodePort services (from `minikube-metrics-apply.sh`, not in the Helm chart).
+
+## GitOps with Argo CD
+
+For **Git ↔ cluster version alignment** (sync from Git commit, drift detection, rollback), see [../argocd/README.md](../argocd/README.md). Argo CD replaces manual `helm upgrade` for deploy; image build and host dependencies remain your responsibility.

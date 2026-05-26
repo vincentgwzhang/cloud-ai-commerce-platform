@@ -1,0 +1,52 @@
+# Argo CD Application — sync Helm chart from Git (GitOps).
+#
+# BEFORE APPLY:
+#   1) Push this repo to a remote Git server Argo CD can reach.
+#   2) Replace spec.source.repoURL and targetRevision below.
+#   3) Register the repo in Argo CD (UI: Settings → Repositories, or argocd repo add).
+#   4) Run devops/argocd/bootstrap-platform-secrets.sh
+#   5) Ensure container images exist in the cluster (image.tag in values.yaml must match).
+#
+# Apply:
+#   kubectl apply -f devops/argocd/applications/commerce-platform.application.yaml
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: commerce-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # REQUIRED: your clone URL (HTTPS or SSH)
+    repoURL: https://github.com/YOUR_USER/cloud-ai-commerce-platform.git
+    targetRevision: main
+    path: devops/helm/commerce-platform
+    helm:
+      releaseName: commerce-platform
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  # Ignore Secrets created outside Git (bootstrap script).
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: auth-service-jwt-keys
+      namespace: default
+    - group: ""
+      kind: Secret
+      name: auth-service-secret
+      namespace: default
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+      - ServerSideApply=true
+    automated:
+      # Set false while learning; enable when Git is the only source of truth.
+      prune: true
+      selfHeal: false

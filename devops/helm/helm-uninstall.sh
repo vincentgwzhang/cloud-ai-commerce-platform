@@ -13,12 +13,14 @@
 #   HELM_RELEASE=commerce-platform
 #   HELM_NAMESPACE=default
 #   REMOVE_MINIKUBE_IMAGES=1
+#   REMOVE_OBSERVABILITY_METRICS=1   # default: delete *-service-metrics NodePorts
 set -euo pipefail
 
 HELM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELM_RELEASE="${HELM_RELEASE:-commerce-platform}"
 HELM_NAMESPACE="${HELM_NAMESPACE:-default}"
 REMOVE_MINIKUBE_IMAGES="${REMOVE_MINIKUBE_IMAGES:-0}"
+REMOVE_OBSERVABILITY_METRICS="${REMOVE_OBSERVABILITY_METRICS:-1}"
 
 delete_ignored() {
   kubectl delete "$@" --ignore-not-found 2>/dev/null || true
@@ -57,6 +59,14 @@ if command -v kubectl >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
   echo "==> Removing JWT / DB secrets"
   delete_ignored secret auth-service-jwt-keys -n "${HELM_NAMESPACE}"
   delete_ignored secret auth-service-secret -n "${HELM_NAMESPACE}"
+
+  if [[ "${REMOVE_OBSERVABILITY_METRICS}" == "1" ]]; then
+    echo "==> Removing observability metrics NodePort services (not part of Helm chart)"
+    for svc in auth-service-metrics product-service-metrics inventory-service-metrics \
+               order-service-metrics gateway-service-metrics; do
+      delete_ignored service "${svc}" -n "${HELM_NAMESPACE}"
+    done
+  fi
 fi
 
 if [[ "${REMOVE_MINIKUBE_IMAGES}" == "1" ]] && minikube status >/dev/null 2>&1; then
