@@ -22,7 +22,7 @@ spec:
   source:
     # REQUIRED: your clone URL (HTTPS or SSH)
     repoURL: https://github.com/vincentgwzhang/cloud-ai-commerce-platform.git
-    targetRevision: main
+    targetRevision: master
     path: devops/helm/commerce-platform
     helm:
       releaseName: commerce-platform
