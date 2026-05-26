@@ -21,7 +21,7 @@ spec:
   project: default
   source:
     # REQUIRED: your clone URL (HTTPS or SSH)
-    repoURL: https://github.com/YOUR_USER/cloud-ai-commerce-platform.git
+    repoURL: https://github.com/vincentgwzhang/cloud-ai-commerce-platform.git
     targetRevision: main
     path: devops/helm/commerce-platform
     helm:
