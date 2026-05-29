@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>02 Service Auth</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;
+max-width:820px;margin:40px auto;padding:0 20px;color:#1a1a1a}
+h1,h2,h3{line-height:1.25;margin-top:1.4em}
+h1{border-bottom:2px solid #eee;padding-bottom:.2em}
+h2{border-bottom:1px solid #eee;padding-bottom:.2em}
+code{background:#f3f3f3;padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f3f3f3}
+a{color:#0a66c2;text-decoration:none}
+blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555}
+</style>
+</head><body>
+<h1 id="02-auth-service">02 — Auth Service</h1>
+<p>Stateless authentication and the trust anchor for the whole platform.</p>
+<p><strong>Port:</strong> 8080 · <strong>Stack:</strong> Spring Boot, Spring Security, MySQL · <strong>Tokens:</strong> RS256 JWT + opaque refresh tokens</p>
+<h2 id="what-it-does">What it does</h2>
+<ul>
+<li><code>POST /api/v1/auth/login</code> — verify credentials (BCrypt), issue an access JWT + a refresh token</li>
+<li><code>POST /api/v1/auth/refresh</code> — rotate tokens (the presented refresh token is revoked, a new pair issued)</li>
+<li><code>GET /api/v1/auth/validate</code> — validate a Bearer JWT, return username + role</li>
+<li><code>GET /api/v1/auth/health</code> — liveness</li>
+</ul>
+<h2 id="design-decisions">Design decisions</h2>
+<ul>
+<li><strong>Asymmetric JWT (RS256).</strong> Auth holds the <strong>private</strong> key and signs; every other service verifies
+  with the <strong>public</strong> key only. No shared secret, and downstream services validate tokens offline —
+  no network call back to Auth on every request.</li>
+<li><strong>Refresh-token rotation with reuse detection.</strong> Refresh tokens are opaque and stored in MySQL
+  (<code>refresh_tokens</code>). Each refresh revokes the old token and issues a new one; replaying an old token
+  returns <code>401</code>. A fresh login revokes the user's active tokens (single-session policy).</li>
+<li><strong>Stateless access path.</strong> Access JWTs are short-lived (1h); refresh tokens last 7 days.</li>
+</ul>
+<pre><code>login ─► access JWT (1h, RS256)  +  refresh token (7d, opaque, in MySQL)
+access expires ─► /refresh (rotates) ─► new access + new refresh
+</code></pre>
+<h2 id="why-it-matters-skills-shown">Why it matters (skills shown)</h2>
+<p>Token lifecycle design, public/private key cryptography, Spring Security configuration, and a clean
+security boundary that the other five services reuse.</p>
+<h2 id="quality">Quality</h2>
+<p>Unit + integration tests (<code>AuthApiIntegrationTest</code> covers login, refresh rotation, validate, and
+error paths) with a JaCoCo line-coverage gate of <strong>85%</strong>.</p>
+</body></html>

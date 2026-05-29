@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>09 Helm</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;
+max-width:820px;margin:40px auto;padding:0 20px;color:#1a1a1a}
+h1,h2,h3{line-height:1.25;margin-top:1.4em}
+h1{border-bottom:2px solid #eee;padding-bottom:.2em}
+h2{border-bottom:1px solid #eee;padding-bottom:.2em}
+code{background:#f3f3f3;padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f3f3f3}
+a{color:#0a66c2;text-decoration:none}
+blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555}
+</style>
+</head><body>
+<h1 id="09-packaging-deploying-with-helm">09 — Packaging &amp; Deploying with Helm</h1>
+<p>The raw manifests from <a href="08-kubectl.md">Kubectl</a> are duplicated per service and hard to keep in sync.
+Helm collapses all six services into <strong>one parameterized chart</strong>.</p>
+<h2 id="the-chart">The chart</h2>
+<p><code>devops/helm/commerce-platform/</code></p>
+<pre><code>Chart.yaml
+values.yaml                # one place for every service's image/port/probes/deps
+values-sealed.yaml         # Sealed Secrets ciphertext (GitOps; see Argo CD doc)
+templates/
+  _helpers.tpl             # shared labels / naming helpers
+  &lt;service&gt;-deployment.yaml
+  &lt;service&gt;-service.yaml
+  &lt;service&gt;-configmap.yaml
+  ai-service-sealedsecret.yaml   # value-gated, off by default
+</code></pre>
+<p>Each template is gated by <code>{{- if .Values.services.&lt;name&gt;.enabled }}</code> and pulls everything from
+<code>values.yaml</code> — image repo/tag, ports, probe timings, and shared dependency hosts
+(<code>host.minikube.internal</code> for MySQL/Redis/Kafka/Chroma).</p>
+<h2 id="from-manifests-to-template">From manifests to template</h2>
+<p><code>kubectl</code> (static):</p>
+<pre><code class="language-yaml">containerPort: 8082
+image: inventory-service:1.0.0
+</code></pre>
+<p>Helm (templated):</p>
+<pre><code class="language-yaml">containerPort: {{ .Values.services.inventory.containerPort }}
+image: {{ include &quot;commerce-platform.image&quot; .Values.services.inventory.image }}
+</code></pre>
+<p>One chart, many environments — override with <code>--set</code> or a values file.</p>
+<h2 id="lifecycle">Lifecycle</h2>
+<pre><code class="language-bash"># optional: produce a versioned .tgz artifact
+./devops/helm/helm-package.sh        # helm lint + helm template + helm package
+
+# install / upgrade (idempotent: runs helm-uninstall first, builds 6 images, then upgrade --install)
+OPENAI_API_KEY=sk-... ./devops/helm/helm-install.sh
+
+# remove the release (also cleans legacy kubectl leftovers)
+./devops/helm/helm-uninstall.sh
+</code></pre>
+<p>Under the hood the install runs:</p>
+<pre><code class="language-bash">helm upgrade --install commerce-platform devops/helm/commerce-platform \
+  --set services.ai.image.tag=1.0.0 ... --wait --timeout 10m
+</code></pre>
+<h2 id="verify-the-rendering-without-a-cluster">Verify the rendering without a cluster</h2>
+<pre><code class="language-bash">helm lint devops/helm/commerce-platform
+helm template commerce-platform devops/helm/commerce-platform
+</code></pre>
+<h2 id="why-it-matters-skills-shown">Why it matters (skills shown)</h2>
+<p>Helm templating and helpers, a single source of truth for multi-service config, release lifecycle
+(<code>upgrade --install</code>, rollback-ready revisions), and packaging a deployable artifact.</p>
+</body></html>

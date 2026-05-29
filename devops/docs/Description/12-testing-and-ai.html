@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>12 Testing And Ai</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;
+max-width:820px;margin:40px auto;padding:0 20px;color:#1a1a1a}
+h1,h2,h3{line-height:1.25;margin-top:1.4em}
+h1{border-bottom:2px solid #eee;padding-bottom:.2em}
+h2{border-bottom:1px solid #eee;padding-bottom:.2em}
+code{background:#f3f3f3;padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f3f3f3}
+a{color:#0a66c2;text-decoration:none}
+blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555}
+</style>
+</head><body>
+<h1 id="12-testing-using-the-ai">12 — Testing &amp; Using the AI</h1>
+<p>How the platform is tested, and how to actually drive the AI features end to end.</p>
+<h2 id="testing-strategy">Testing strategy</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Tooling</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit</td>
+<td>JUnit, Mockito</td>
+<td><code>JwtServiceTest</code>, <code>RefreshTokenServiceTest</code></td>
+</tr>
+<tr>
+<td>Integration</td>
+<td>Spring Boot Test, <strong>Testcontainers</strong></td>
+<td><code>AuthApiIntegrationTest</code>, Product cache tests against real Redis</td>
+</tr>
+<tr>
+<td>Coverage gate</td>
+<td><strong>JaCoCo</strong></td>
+<td>build fails under 80% (Auth 85%)</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-bash">mvn test verify          # whole platform
+mvn -pl AuthService test verify
+xdg-open AuthService/target/site/jacoco/index.html   # coverage report
+</code></pre>
+<p>Why Testcontainers: cache and auth behavior are verified against <strong>real</strong> Redis/DB instances spun up
+per test run, not mocks — far closer to production behavior.</p>
+<h2 id="manual-api-testing">Manual API testing</h2>
+<p>A Postman collection (<code>postman/</code>) covers Auth → Product → Inventory with an environment that
+auto-saves tokens. The typical flow:</p>
+<pre><code class="language-bash"># 1) get a token
+TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{&quot;username&quot;:&quot;vincent&quot;,&quot;password&quot;:&quot;123456&quot;}' | jq -r .accessToken)
+
+# 2) call a protected API
+curl -s http://localhost:8081/api/v1/products -H &quot;Authorization: Bearer $TOKEN&quot; | jq
+</code></pre>
+<h2 id="using-the-ai-service">Using the AI service</h2>
+<p>Prerequisites for full AI: Kafka + ChromaDB running, and <code>OPENAI_API_KEY</code> provided.</p>
+<pre><code class="language-bash">docker compose -f devops/script/docker-compose-app.yml up -d                    # Kafka
+docker compose -f devops/script/docker-compose-observability-local.yml up -d    # includes Chroma
+</code></pre>
+<h3 id="1-chat-with-memory">1. Chat (with memory)</h3>
+<pre><code class="language-bash">curl -s -X POST http://localhost:8084/api/v1/ai/chat \
+  -H &quot;Authorization: Bearer $TOKEN&quot; -H 'Content-Type: application/json' \
+  -d '{&quot;message&quot;:&quot;Hi, recommend a phone&quot;,&quot;conversationId&quot;:null}' | jq
+</code></pre>
+<p>The response returns a <code>conversationId</code>; pass it back on the next turn to keep context. History is
+stored in Redis with a sliding TTL.</p>
+<h3 id="2-product-rag">2. Product RAG</h3>
+<p>First, product events flow Product → Kafka → AI, which embeds them into ChromaDB. Then ask in
+natural language:</p>
+<pre><code class="language-bash">curl -s -X POST http://localhost:8084/api/v1/ai/ask \
+  -H &quot;Authorization: Bearer $TOKEN&quot; -H 'Content-Type: application/json' \
+  -d '{&quot;question&quot;:&quot;Which products are good for gaming under a tight budget?&quot;}' | jq
+</code></pre>
+<p>The answer is <strong>grounded in real catalog data</strong> — the service embeds the question, runs a similarity
+search in ChromaDB, builds a prompt from the top matches, and asks OpenAI. The response includes the
+source product codes so answers are traceable, not hallucinated.</p>
+<h3 id="how-i-validated-the-vector-store">How I validated the vector store</h3>
+<p>The ChromaDB integration (v2 API) was verified directly against a running Chroma container with a
+full create-collection → upsert → similarity-query → delete round trip before wiring it into the
+service — proving the riskiest piece independently of the rest of the stack.</p>
+<h2 id="why-it-matters-skills-shown">Why it matters (skills shown)</h2>
+<p>A test pyramid with real-dependency integration tests and coverage gates, plus hands-on LLM
+application testing (embeddings, vector similarity, prompt grounding, source attribution).</p>
+</body></html>

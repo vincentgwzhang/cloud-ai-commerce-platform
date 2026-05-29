@@ -1,0 +1,94 @@
+<!--
+Building a Cloud-Native AI Commerce Platform
+
+Built a cloud-native AI commerce platform end to end: 6 Spring Boot microservices, Kafka, Kubernetes (kubectl / Helm / Argo CD GitOps), full observability, and a RAG assistant (OpenAI + ChromaDB).
+
+Deep dive + code in the article 👇
+
+#Java #SpringBoot #Kubernetes #ArgoCD #Kafka #AI #RAG #DevOps
+-->
+
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Building a Cloud-Native AI Commerce Platform</title>
+</head>
+<body>
+
+<h1>Building a Cloud-Native AI Commerce Platform (Solo Project)</h1>
+
+<p>Over the past weeks I built a production-style microservices platform end to end — from
+event-driven backend services to GitOps delivery, full observability, and an AI assistant that
+answers questions grounded in real product data. Here’s what it does and what I learned.</p>
+
+<p><strong>Stack:</strong> Java 25, Spring Boot 4, Spring Cloud, MySQL, Redis, Apache Kafka,
+Kubernetes (Minikube), Helm, Argo CD, Bitnami Sealed Secrets, Prometheus, Grafana, OpenTelemetry,
+OpenAI + ChromaDB.</p>
+
+<h2>The architecture</h2>
+
+<p>Six independently deployable services sit behind an API gateway and communicate over REST and
+Kafka:</p>
+
+<ul>
+<li><strong>Auth (8080)</strong> — stateless RS256 JWT: login, refresh-token rotation, validate.</li>
+<li><strong>Product (8081)</strong> — catalog with Redis cache-aside, stampede protection, TTL jitter.</li>
+<li><strong>Inventory (8082)</strong> — reservations with anti-overselling, idempotency, optimistic locking.</li>
+<li><strong>Order (8083)</strong> — order orchestration as a Kafka Saga (choreography) with dead-letter handling.</li>
+<li><strong>AI (8084)</strong> — chat with memory + Retrieval-Augmented Generation over the catalog.</li>
+<li><strong>Gateway (8088)</strong> — single entry point via Spring Cloud Gateway.</li>
+</ul>
+
+<h2>Three ways to deploy — all idempotent</h2>
+
+<p>The same platform ships three ways, which forced me to really understand each layer:</p>
+
+<ul>
+<li><strong>Raw kubectl</strong> — Deployments, Services, ConfigMaps and Secrets applied directly; images built straight into Minikube’s Docker daemon.</li>
+<li><strong>Helm</strong> — all six services collapsed into one parameterized chart (one values file, templated manifests, <em>upgrade --install</em>).</li>
+<li><strong>Argo CD (GitOps)</strong> — Git is the single source of truth; Argo CD continuously reconciles the cluster to the chart in the repo.</li>
+</ul>
+
+<h2>Secrets in Git, safely</h2>
+
+<p>GitOps wants everything in Git, but you must never commit a plaintext API key. I used
+<strong>Bitnami Sealed Secrets</strong>: the OpenAI key is encrypted client-side into ciphertext that
+is safe to commit (even publicly) and only the in-cluster controller can decrypt it. Push the
+ciphertext → Argo CD syncs it → the controller materializes the real Kubernetes Secret.</p>
+
+<h2>The AI part: RAG with clean boundaries</h2>
+
+<p>The AI service answers natural-language questions about products. The key design choice was
+keeping service boundaries clean: product data stays owned by the Product service, while the AI
+service maintains an <strong>eventually-consistent vector replica</strong> synchronized through Kafka
+product events — no cross-service database reads.</p>
+
+<p>A question is embedded, matched against ChromaDB via similarity search, and the top results are
+turned into a grounded prompt for the LLM. The answer cites the source product codes, so it’s
+traceable rather than hallucinated. Embedding, vector store, and LLM all sit behind interfaces, so
+each can be swapped without touching the pipeline.</p>
+
+<h2>Observability by default</h2>
+
+<p>Every service exposes Prometheus metrics and trace-correlated logs. Micrometer feeds Prometheus,
+Grafana renders a provisioned dashboard (availability, HTTP latency, cache hit/miss, Kafka
+consume/publish), and an OpenTelemetry trace ID flows into the logs so a single request can be
+followed across services.</p>
+
+<h2>What I learned</h2>
+
+<ul>
+<li>Designing token lifecycles and a public/private-key trust boundary that five services reuse.</li>
+<li>Distributed transactions without two-phase commit — Kafka Saga, idempotency, and dead-letter queues.</li>
+<li>The real differences between kubectl, Helm and GitOps — and the operational gotchas (CRDs too large for client-side apply, branch mismatches, Argo CD fighting manual changes).</li>
+<li>Shipping secrets through GitOps without leaking them.</li>
+<li>Integrating an LLM pragmatically: embeddings, vector search, prompt grounding, and resilience around a third-party API.</li>
+</ul>
+
+<p>Full source, docs, and per-topic deep dives are on GitHub:
+<a href="https://github.com/vincentgwzhang/cloud-ai-commerce-platform">github.com/vincentgwzhang/cloud-ai-commerce-platform</a></p>
+
+<p><em>#Java #SpringBoot #Microservices #Kubernetes #Helm #ArgoCD #GitOps #Kafka #AI #RAG #DevOps</em></p>
+
+
+
+</body></html>

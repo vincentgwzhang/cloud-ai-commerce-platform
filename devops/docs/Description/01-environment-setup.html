@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>01 Environment Setup</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;
+max-width:820px;margin:40px auto;padding:0 20px;color:#1a1a1a}
+h1,h2,h3{line-height:1.25;margin-top:1.4em}
+h1{border-bottom:2px solid #eee;padding-bottom:.2em}
+h2{border-bottom:1px solid #eee;padding-bottom:.2em}
+code{background:#f3f3f3;padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f3f3f3}
+a{color:#0a66c2;text-decoration:none}
+blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555}
+</style>
+</head><body>
+<h1 id="01-environment-setup">01 — Environment Setup</h1>
+<p>How to get the whole platform running on a single machine. There are three ways to run it; this
+page covers the shared prerequisites and the fastest happy path.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JDK</td>
+<td>25</td>
+<td>Build/run the services</td>
+</tr>
+<tr>
+<td>Maven</td>
+<td>3.9+</td>
+<td>Multi-module build</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td>recent</td>
+<td>Kafka, Chroma, Prometheus/Grafana, image builds</td>
+</tr>
+<tr>
+<td>Minikube</td>
+<td>recent</td>
+<td>Local Kubernetes (scenarios 2 &amp; 3)</td>
+</tr>
+<tr>
+<td>kubectl / Helm</td>
+<td>recent</td>
+<td>Deploy to the cluster</td>
+</tr>
+<tr>
+<td>MySQL 8 / Redis 7</td>
+<td>—</td>
+<td>Host-managed data stores</td>
+</tr>
+</tbody>
+</table>
+<h2 id="host-services-you-manage">Host services you manage</h2>
+<p>The deploy scripts never start or stop your databases — you run them yourself:</p>
+<ul>
+<li><strong>MySQL</strong> <code>:3306</code> — database <code>commerce_platform</code>, user <code>vincent</code></li>
+<li><strong>Redis</strong> <code>:6379</code></li>
+</ul>
+<p>Apply the schema (idempotent, includes sample users + the AI tables):</p>
+<pre><code class="language-bash">mysql -h 127.0.0.1 -u vincent -p commerce_platform &lt; devops/db/init.sql
+</code></pre>
+<p>Sample users (password <code>123456</code>): <code>vincent</code> (USER), <code>admin</code> (ADMIN), <code>tester</code> (USER).</p>
+<h2 id="jwt-keys-one-command">JWT keys (one command)</h2>
+<p>All services share one RSA key pair for RS256 JWT:</p>
+<pre><code class="language-bash">./devops/script/local-dev-setup.sh   # generates devops/data/keys/{private,public}.pem if missing
+</code></pre>
+<h2 id="three-ways-to-run">Three ways to run</h2>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Entry point</th>
+<th>Doc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Run on host (IntelliJ / <code>mvn</code>)</td>
+<td><code>docker compose ... up -d</code> + run apps</td>
+<td>[Kubectl/Helm pages + repo <code>devops/README.md</code>]</td>
+</tr>
+<tr>
+<td>Deploy to Minikube with raw manifests</td>
+<td><code>./devops/script/install.sh</code></td>
+<td><a href="08-kubectl.md">08 — Kubectl</a></td>
+</tr>
+<tr>
+<td>Deploy to Minikube with Helm</td>
+<td><code>./devops/helm/helm-install.sh</code></td>
+<td><a href="09-helm.md">09 — Helm</a></td>
+</tr>
+<tr>
+<td>GitOps with Argo CD</td>
+<td>Argo CD syncs the chart from Git</td>
+<td><a href="10-argocd.md">10 — Argo CD</a></td>
+</tr>
+</tbody>
+</table>
+<h3 id="fastest-local-happy-path">Fastest local happy path</h3>
+<pre><code class="language-bash"># infra
+docker compose -f devops/script/docker-compose-app.yml up -d                   # Kafka
+docker compose -f devops/script/docker-compose-observability-local.yml up -d   # Prometheus + Grafana + Chroma
+
+# run services (separate terminals), profile &quot;local&quot;
+mvn -pl AuthService spring-boot:run
+mvn -pl ProductService spring-boot:run
+# ... inventory / order / gateway
+OPENAI_API_KEY=sk-... mvn -pl AiService spring-boot:run
+</code></pre>
+<h2 id="profiles">Profiles</h2>
+<p>Each service ships <code>application.yml</code> plus <code>application-docker.yml</code> / <code>application-k8s.yml</code>:</p>
+<ul>
+<li><code>local</code> — everything on <code>localhost</code> (IntelliJ)</li>
+<li><code>docker</code> — container on host, reaches host via <code>host.docker.internal</code></li>
+<li><code>k8s</code> — pod in Minikube, reaches host via <code>host.minikube.internal</code></li>
+</ul>
+<h2 id="configuration-philosophy">Configuration philosophy</h2>
+<p>Config is environment variables with sane defaults; secrets are never hard-coded. The OpenAI key
+is injected at runtime (env var locally, Kubernetes Secret in-cluster, Sealed Secret under GitOps).</p>
+</body></html>

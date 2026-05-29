@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>11 Grafana</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;
+max-width:820px;margin:40px auto;padding:0 20px;color:#1a1a1a}
+h1,h2,h3{line-height:1.25;margin-top:1.4em}
+h1{border-bottom:2px solid #eee;padding-bottom:.2em}
+h2{border-bottom:1px solid #eee;padding-bottom:.2em}
+code{background:#f3f3f3;padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f3f3f3}
+a{color:#0a66c2;text-decoration:none}
+blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555}
+</style>
+</head><body>
+<h1 id="11-observability-with-prometheus-grafana">11 — Observability with Prometheus &amp; Grafana</h1>
+<p>Every service is observable by default: metrics, dashboards, and trace-correlated logs.</p>
+<h2 id="the-pipeline">The pipeline</h2>
+<pre><code>Spring Boot (Micrometer) ─► /actuator/prometheus ─► Prometheus (scrape) ─► Grafana (dashboards)
+                          └─► OpenTelemetry trace IDs ─► structured logs (MDC)
+</code></pre>
+<ul>
+<li><strong>Micrometer</strong> exposes JVM, HTTP, and custom business metrics on <code>/actuator/prometheus</code>.</li>
+<li><strong>Prometheus</strong> scrapes every service on an interval.</li>
+<li><strong>Grafana</strong> auto-provisions a "Commerce Platform Overview" dashboard (datasource + dashboard as code).</li>
+</ul>
+<h2 id="two-scrape-modes">Two scrape modes</h2>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>How Prometheus reaches the apps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Local</strong> (IntelliJ)</td>
+<td>apps on the host → <code>host.docker.internal:808x/actuator/prometheus</code></td>
+</tr>
+<tr>
+<td><strong>Minikube</strong></td>
+<td><code>*-metrics</code> NodePort services on the <code>minikube</code> Docker network</td>
+</tr>
+</tbody>
+</table>
+<p>Minikube apps are <code>ClusterIP</code>, so a Docker-based Prometheus can't see them directly. The fix is a set
+of <strong>NodePort metrics services</strong>, applied separately from the app chart:</p>
+<pre><code class="language-bash">./devops/script/observability/minikube-metrics-apply.sh                          # create NodePorts (re-run after each cluster rebuild)
+docker compose -f devops/script/docker-compose-observability-minikube.yml up -d  # Prometheus + Grafana + Chroma
+</code></pre>
+<blockquote>
+<p>Gotcha I hit: starting the compose without applying the NodePorts first shows every target DOWN in
+Grafana. It's not a port-forward issue — Prometheus simply has nothing to scrape yet.</p>
+</blockquote>
+<h2 id="what-the-dashboard-shows">What the dashboard shows</h2>
+<ul>
+<li>Service availability (<code>up</code> per job, red/green)</li>
+<li>HTTP request rate and p95 latency per service</li>
+<li>Auth: login success/failure, JVM heap</li>
+<li>Product: cache hit/miss</li>
+<li>Inventory: reservations, locks, Kafka consume/publish</li>
+<li>Order: created/failed, event publish, Kafka failures</li>
+<li>Gateway: request rate by route</li>
+</ul>
+<h2 id="trace-correlation">Trace correlation</h2>
+<p>A request filter assigns/propagates an <code>X-Request-Id</code>, bridges the OpenTelemetry trace context into
+the logging MDC, and emits structured logs like:</p>
+<pre><code>... [requestId] [traceId] com.vincent... - message
+</code></pre>
+<p>So a single request can be followed across services in logs and traces.</p>
+<h2 id="access">Access</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Grafana</td>
+<td>http://localhost:3000 (admin / admin)</td>
+</tr>
+<tr>
+<td>Prometheus</td>
+<td>http://localhost:9090</td>
+</tr>
+</tbody>
+</table>
+<h2 id="why-it-matters-skills-shown">Why it matters (skills shown)</h2>
+<p>The metrics → scrape → dashboard pipeline, dashboards/datasources as code, custom business metrics,
+and request tracing/log correlation — the three pillars of observability in practice.</p>
+</body></html>

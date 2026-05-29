@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Readme</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;
+max-width:820px;margin:40px auto;padding:0 20px;color:#1a1a1a}
+h1,h2,h3{line-height:1.25;margin-top:1.4em}
+h1{border-bottom:2px solid #eee;padding-bottom:.2em}
+h2{border-bottom:1px solid #eee;padding-bottom:.2em}
+code{background:#f3f3f3;padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f3f3f3}
+a{color:#0a66c2;text-decoration:none}
+blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555}
+</style>
+</head><body>
+<h1 id="cloud-ai-commerce-platform">Cloud AI Commerce Platform</h1>
+<p>A production-style <strong>microservices commerce platform</strong> built to demonstrate end-to-end backend,
+cloud-native, and AI engineering: event-driven services, GitOps delivery, observability, and a
+Retrieval-Augmented Generation (RAG) assistant.</p>
+<blockquote>
+<p>Personal project. Everything below is implemented and runnable on a single laptop (Minikube).</p>
+</blockquote>
+<hr />
+<h2 id="what-it-is">What it is</h2>
+<p>Six independently deployable Spring Boot services behind an API gateway, talking over REST and
+Kafka, deployed to Kubernetes three different ways (kubectl, Helm, and ArgoCD GitOps), with full
+metrics/tracing and an OpenAI-powered RAG service.</p>
+<pre><code>                         ┌─────────────────┐
+   client ──► Gateway ──►│ Product / Order  │──► MySQL
+              (8088)     │ Inventory / Auth │──► Redis
+                         │ AI               │──► Kafka  ──► (events)
+                         └─────────────────┘──► ChromaDB + OpenAI (RAG)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="02-service-auth.md">Auth</a></td>
+<td>8080</td>
+<td>Stateless RS256 JWT auth (login / refresh rotation / validate)</td>
+</tr>
+<tr>
+<td><a href="03-service-product.md">Product</a></td>
+<td>8081</td>
+<td>Catalog with Redis cache-aside + lock</td>
+</tr>
+<tr>
+<td><a href="04-service-inventory.md">Inventory</a></td>
+<td>8082</td>
+<td>Reservations, anti-overselling, idempotency, optimistic locking</td>
+</tr>
+<tr>
+<td><a href="05-service-order.md">Order</a></td>
+<td>8083</td>
+<td>Order orchestration via Kafka Saga choreography</td>
+</tr>
+<tr>
+<td><a href="07-service-ai.md">AI</a></td>
+<td>8084</td>
+<td>Chat, conversation memory, and Product RAG (OpenAI + ChromaDB)</td>
+</tr>
+<tr>
+<td><a href="06-service-gateway.md">Gateway</a></td>
+<td>8088</td>
+<td>Single entry point (Spring Cloud Gateway)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="tech-stack">Tech stack</h2>
+<ul>
+<li><strong>Language / framework:</strong> Java 25, Spring Boot 4.0.6, Spring Cloud 2025.1.0</li>
+<li><strong>Data:</strong> MySQL 8, Redis 7, Apache Kafka 4.3 (KRaft, no ZooKeeper)</li>
+<li><strong>Security:</strong> OAuth2 Resource Server, RS256 JWT, RSA key pair</li>
+<li><strong>AI:</strong> OpenAI (<code>text-embedding-3-small</code> + <code>gpt-4o-mini</code>), ChromaDB vector store, RAG</li>
+<li><strong>Cloud-native:</strong> Docker, Minikube, Kubernetes, Helm, Argo CD (GitOps), Bitnami Sealed Secrets</li>
+<li><strong>Observability:</strong> Micrometer → Prometheus, Grafana dashboards, OpenTelemetry tracing, MDC correlation IDs</li>
+<li><strong>Quality:</strong> JUnit, Testcontainers, JaCoCo coverage gates (80%, Auth 85%)</li>
+</ul>
+<hr />
+<h2 id="engineering-highlights">Engineering highlights</h2>
+<ul>
+<li><strong>Three delivery paths, all idempotent</strong> — the same platform deploys via raw <code>kubectl</code>, via a
+  single Helm chart, or via Argo CD pulling from Git. See <a href="08-kubectl.md">Kubectl</a>,
+  <a href="09-helm.md">Helm</a>, <a href="10-argocd.md">Argo CD</a>.</li>
+<li><strong>GitOps with safe secrets</strong> — Argo CD syncs the Helm chart from Git; the OpenAI API key is
+  committed as <strong>Sealed Secrets ciphertext</strong> (safe in a public repo) and decrypted in-cluster.</li>
+<li><strong>Event-driven Saga</strong> — Order ↔ Inventory coordinate asynchronously over Kafka with
+  dead-letter handling and idempotent consumers.</li>
+<li><strong>RAG done with clean boundaries</strong> — product data stays in Product service; the AI service keeps
+  an eventually-consistent vector replica synced via Kafka events. Embedding / vector-store / LLM
+  are swappable behind interfaces.</li>
+<li><strong>Observability by default</strong> — every service exposes Prometheus metrics and trace-correlated logs.</li>
+</ul>
+<hr />
+<h2 id="read-next">Read next</h2>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Doc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Get it running locally</td>
+<td><a href="01-environment-setup.md">01 — Environment setup</a></td>
+</tr>
+<tr>
+<td>The six services</td>
+<td><a href="02-service-auth.md">Auth</a> · <a href="03-service-product.md">Product</a> · <a href="04-service-inventory.md">Inventory</a> · <a href="05-service-order.md">Order</a> · <a href="06-service-gateway.md">Gateway</a> · <a href="07-service-ai.md">AI</a></td>
+</tr>
+<tr>
+<td>Deploy with kubectl</td>
+<td><a href="08-kubectl.md">08 — Kubectl</a></td>
+</tr>
+<tr>
+<td>Package &amp; deploy with Helm</td>
+<td><a href="09-helm.md">09 — Helm</a></td>
+</tr>
+<tr>
+<td>GitOps with Argo CD + Sealed Secrets</td>
+<td><a href="10-argocd.md">10 — Argo CD</a></td>
+</tr>
+<tr>
+<td>Metrics &amp; dashboards</td>
+<td><a href="11-grafana.md">11 — Grafana</a></td>
+</tr>
+<tr>
+<td>Testing &amp; using the AI</td>
+<td><a href="12-testing-and-ai.md">12 — Testing &amp; AI</a></td>
+</tr>
+</tbody>
+</table>
+</body></html>
