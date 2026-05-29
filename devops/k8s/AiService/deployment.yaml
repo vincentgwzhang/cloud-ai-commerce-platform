@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  labels:
+    app: ai-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      containers:
+        - name: ai-service
+          image: ai-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: ai-service-config
+            - secretRef:
+                name: auth-service-secret
+            - secretRef:
+                name: ai-service-secret
+                optional: true
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ai/health
+              port: 8084
+            initialDelaySeconds: 25
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/ai/health
+              port: 8084
+            initialDelaySeconds: 45
+            periodSeconds: 20
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: auth-service-jwt-keys

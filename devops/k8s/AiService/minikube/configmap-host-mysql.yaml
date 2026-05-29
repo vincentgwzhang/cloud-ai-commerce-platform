@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-service-config
+data:
+  SERVER_PORT: "8084"
+  SPRING_PROFILES_ACTIVE: "k8s"
+  JWT_PUBLIC_KEY_PATH: "file:/app/keys/public.pem"
+  DB_HOST: "host.minikube.internal"
+  DB_PORT: "3306"
+  DB_NAME: "commerce_platform"
+  REDIS_HOST: "host.minikube.internal"
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: "host.minikube.internal:9092"
+  JWT_ISSUER: "auth-service"
+  CHROMA_BASE_URL: "http://host.minikube.internal:8000"
+  OPENAI_BASE_URL: "https://api.openai.com"
+  OPENAI_EMBEDDING_MODEL: "text-embedding-3-small"
+  OPENAI_CHAT_MODEL: "gpt-4o-mini"

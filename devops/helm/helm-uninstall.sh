@@ -44,26 +44,27 @@ fi
 
 if command -v kubectl >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
   echo "==> Removing workloads (Helm or legacy kubectl)"
-  for dep in gateway-service order-service inventory-service product-service auth-service; do
+  for dep in gateway-service ai-service order-service inventory-service product-service auth-service; do
     delete_ignored deployment "${dep}" -n "${HELM_NAMESPACE}" --wait=true --timeout=120s
     delete_ignored service "${dep}" -n "${HELM_NAMESPACE}"
   done
-  for cm in gateway-service-config order-service-config inventory-service-config product-service-config auth-service-config; do
+  for cm in gateway-service-config ai-service-config order-service-config inventory-service-config product-service-config auth-service-config; do
     delete_ignored configmap "${cm}" -n "${HELM_NAMESPACE}"
   done
-  for app in gateway-service order-service inventory-service product-service auth-service; do
+  for app in gateway-service ai-service order-service inventory-service product-service auth-service; do
     delete_ignored replicaset -l "app=${app}" -n "${HELM_NAMESPACE}"
     delete_ignored pod -l "app=${app}" -n "${HELM_NAMESPACE}"
   done
 
-  echo "==> Removing JWT / DB secrets"
+  echo "==> Removing JWT / DB / AI secrets"
   delete_ignored secret auth-service-jwt-keys -n "${HELM_NAMESPACE}"
   delete_ignored secret auth-service-secret -n "${HELM_NAMESPACE}"
+  delete_ignored secret ai-service-secret -n "${HELM_NAMESPACE}"
 
   if [[ "${REMOVE_OBSERVABILITY_METRICS}" == "1" ]]; then
     echo "==> Removing observability metrics NodePort services (not part of Helm chart)"
     for svc in auth-service-metrics product-service-metrics inventory-service-metrics \
-               order-service-metrics gateway-service-metrics; do
+               order-service-metrics gateway-service-metrics ai-service-metrics; do
       delete_ignored service "${svc}" -n "${HELM_NAMESPACE}"
     done
   fi
@@ -72,7 +73,7 @@ fi
 if [[ "${REMOVE_MINIKUBE_IMAGES}" == "1" ]] && minikube status >/dev/null 2>&1; then
   echo "==> Removing service images from Minikube (best effort)"
   for tag in \
-    auth-service:1.0.0 product-service:1.0.0 inventory-service:1.0.0 order-service:1.0.0 gateway-service:1.0.0; do
+    auth-service:1.0.0 product-service:1.0.0 inventory-service:1.0.0 order-service:1.0.0 gateway-service:1.0.0 ai-service:1.0.0; do
     minikube image rm "${tag}" 2>/dev/null || true
   done
 fi

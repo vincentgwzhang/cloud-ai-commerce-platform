@@ -123,3 +123,26 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY idx_orders_status (status)
 );
+
+-- ai-service: behaviour signals derived from order/inventory events (recommendation input)
+CREATE TABLE IF NOT EXISTS ai_interaction (
+    id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username         VARCHAR(50)  NOT NULL,
+    product_code     VARCHAR(64)  NOT NULL,
+    interaction_type VARCHAR(20)  NOT NULL,
+    weight           INT          NOT NULL DEFAULT 1,
+    created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ai_interaction_user (username),
+    KEY idx_ai_interaction_product (product_code)
+);
+
+-- ai-service: recommendation audit log (explainability / observability)
+CREATE TABLE IF NOT EXISTS ai_recommendation_log (
+    id                BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username          VARCHAR(50)  NOT NULL,
+    context           VARCHAR(200),
+    recommended_codes VARCHAR(500) NOT NULL,
+    source            VARCHAR(20)  NOT NULL,
+    created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ai_reco_user (username)
+);

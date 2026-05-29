@@ -20,6 +20,7 @@ REQUIRED_DEPLOYMENTS=(
   inventory-service-deployment.yaml
   order-service-deployment.yaml
   gateway-service-deployment.yaml
+  ai-service-deployment.yaml
 )
 
 if ! command -v helm >/dev/null 2>&1; then
@@ -39,7 +40,7 @@ for f in "${REQUIRED_DEPLOYMENTS[@]}"; do
     exit 1
   fi
 done
-echo "    OK: auth, product, inventory, order, gateway"
+echo "    OK: auth, product, inventory, order, gateway, ai"
 
 mkdir -p "${DIST_DIR}"
 
@@ -58,7 +59,7 @@ echo "========================================"
 echo "  Platform chart packaged"
 echo "========================================"
 echo "  Chart:   ${PKG}"
-echo "  Includes: Auth, Product, Inventory, Order, Gateway"
+echo "  Includes: Auth, Product, Inventory, Order, Gateway, AI"
 echo "  Deploy:  ${HELM_DIR}/helm-install.sh"
-echo "  Note:    install deploys K8s only; you start MySQL/Redis/Kafka on the host"
-echo "           install builds Docker images for the 5 microservices (SKIP_BUILD=1 to skip)"
+echo "  Note:    install deploys K8s only; you start MySQL/Redis/Kafka/Chroma on the host"
+echo "           install builds Docker images for the 6 microservices (SKIP_BUILD=1 to skip)"

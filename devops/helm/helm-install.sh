@@ -38,6 +38,8 @@ PRODUCT_IMAGE="${PRODUCT_SERVICE_IMAGE:-product-service:1.0.0}"
 INVENTORY_IMAGE="${INVENTORY_SERVICE_IMAGE:-inventory-service:1.0.0}"
 ORDER_IMAGE="${ORDER_SERVICE_IMAGE:-order-service:1.0.0}"
 GATEWAY_IMAGE="${GATEWAY_SERVICE_IMAGE:-gateway-service:1.0.0}"
+AI_IMAGE="${AI_SERVICE_IMAGE:-ai-service:1.0.0}"
+OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
 # All platform microservices (Maven modules at repo root).
 PLATFORM_SERVICES=(
@@ -46,6 +48,7 @@ PLATFORM_SERVICES=(
   "InventoryService:${INVENTORY_IMAGE}"
   "OrderService:${ORDER_IMAGE}"
   "GatewayService:${GATEWAY_IMAGE}"
+  "AiService:${AI_IMAGE}"
 )
 
 if ! minikube status >/dev/null 2>&1; then
@@ -71,6 +74,7 @@ echo "  Host deps (not managed by this script):"
 echo "    MySQL  ${DB_USERNAME}@host.minikube.internal:3306"
 echo "    Redis  host.minikube.internal:6379"
 echo "    Kafka  host.minikube.internal:9092"
+echo "    Chroma host.minikube.internal:8000 (ai-service RAG vector store)"
 echo "  Ensure they are already running on your machine."
 
 if [[ "${HELM_SKIP_UNINSTALL:-0}" != "1" ]]; then
@@ -102,6 +106,19 @@ kubectl create secret generic auth-service-secret \
   --from-literal=DB_USERNAME="${DB_USERNAME}" \
   --from-literal="DB_PASSWORD=${DB_PASSWORD}" \
   --dry-run=client -o yaml | kubectl apply -f -
+
+# ai-service OpenAI key (optional secret; ai-service boots without it but RAG/chat calls fail).
+if [[ -n "${OPENAI_API_KEY}" ]]; then
+  echo "==> ai-service-secret (OPENAI_API_KEY provided)"
+  kubectl create secret generic ai-service-secret \
+    --namespace "${HELM_NAMESPACE}" \
+    --from-literal="OPENAI_API_KEY=${OPENAI_API_KEY}" \
+    --dry-run=client -o yaml | kubectl apply -f -
+else
+  echo "    NOTE: OPENAI_API_KEY not set — skipping ai-service-secret."
+  echo "          ai-service will start, but OpenAI embedding/chat calls fail until you create it:"
+  echo "          OPENAI_API_KEY=sk-... ${HELM_DIR}/helm-install.sh"
+fi
 
 split_image() {
   local image="$1"
@@ -150,6 +167,7 @@ read -r PRODUCT_REPO PRODUCT_TAG <<< "$(split_image "${PRODUCT_IMAGE}")"
 read -r INVENTORY_REPO INVENTORY_TAG <<< "$(split_image "${INVENTORY_IMAGE}")"
 read -r ORDER_REPO ORDER_TAG <<< "$(split_image "${ORDER_IMAGE}")"
 read -r GATEWAY_REPO GATEWAY_TAG <<< "$(split_image "${GATEWAY_IMAGE}")"
+read -r AI_REPO AI_TAG <<< "$(split_image "${AI_IMAGE}")"
 
 CHART_REF="${CHART_DIR}"
 if [[ -d "${DIST_DIR}" ]]; then
@@ -176,12 +194,14 @@ helm upgrade --install "${HELM_RELEASE}" "${CHART_REF}" \
   --set "services.order.image.tag=${ORDER_TAG}" \
   --set "services.gateway.image.repository=${GATEWAY_REPO}" \
   --set "services.gateway.image.tag=${GATEWAY_TAG}" \
+  --set "services.ai.image.repository=${AI_REPO}" \
+  --set "services.ai.image.tag=${AI_TAG}" \
   --wait \
   --timeout 10m
 
 echo ""
 echo "==> Step 5: rollout status (auth first, then business services, gateway last)"
-for dep in auth-service product-service inventory-service order-service gateway-service; do
+for dep in auth-service product-service inventory-service order-service ai-service gateway-service; do
   kubectl rollout status "deployment/${dep}" -n "${HELM_NAMESPACE}" --timeout=300s
 done
 
@@ -198,5 +218,6 @@ echo "  Gateway:  kubectl port-forward -n ${HELM_NAMESPACE} svc/gateway-service 
 echo "  Product:  kubectl port-forward -n ${HELM_NAMESPACE} svc/product-service 8081:80"
 echo "  Inventory:kubectl port-forward -n ${HELM_NAMESPACE} svc/inventory-service 8082:80"
 echo "  Order:    kubectl port-forward -n ${HELM_NAMESPACE} svc/order-service 8083:80"
+echo "  AI:       kubectl port-forward -n ${HELM_NAMESPACE} svc/ai-service 8084:80"
 echo ""
 echo "  Teardown: ${HELM_DIR}/helm-uninstall.sh"

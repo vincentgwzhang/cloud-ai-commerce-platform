@@ -1,0 +1,17 @@
+{{- if .Values.services.ai.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: {{ include "commerce-platform.namespace" . }}
+  labels:
+    {{- include "commerce-platform.serviceLabels" (dict "root" . "appName" "ai-service") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "commerce-platform.selectorLabels" (dict "root" . "appName" "ai-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.services.ai.servicePort }}
+      targetPort: {{ .Values.services.ai.containerPort }}
+{{- end }}

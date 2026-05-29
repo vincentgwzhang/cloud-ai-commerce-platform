@@ -36,5 +36,18 @@ services:
       - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
 
+  # ChromaDB vector store for ai-service RAG (host dependency; client targets the v2 REST API).
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma-local
+    ports:
+      - "8000:8000"
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/data
+
 volumes:
   grafana_data:
+  chroma_data:

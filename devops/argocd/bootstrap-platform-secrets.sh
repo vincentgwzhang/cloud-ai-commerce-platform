@@ -20,6 +20,7 @@ JWT_KEYS_DIR="${DEVOPS_ROOT}/data/keys"
 HELM_NAMESPACE="${HELM_NAMESPACE:-default}"
 DB_USERNAME="${DB_USERNAME:-vincent}"
 DB_PASSWORD="${DB_PASSWORD:-1q2w3e4R}"
+OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
 chmod +x "${LOCAL_DEV_SETUP}"
 JWT_KEYS_DIR="${JWT_KEYS_DIR}" "${LOCAL_DEV_SETUP}" --keys-only
@@ -41,5 +42,17 @@ kubectl create secret generic auth-service-secret \
   --from-literal=DB_USERNAME="${DB_USERNAME}" \
   --from-literal="DB_PASSWORD=${DB_PASSWORD}" \
   --dry-run=client -o yaml | kubectl apply -f -
+
+# ai-service OpenAI key (optional). ai-service boots without it; RAG/chat OpenAI calls fail until set.
+if [[ -n "${OPENAI_API_KEY}" ]]; then
+  echo "==> Creating ai-service-secret (OPENAI_API_KEY provided)"
+  kubectl create secret generic ai-service-secret \
+    --namespace "${HELM_NAMESPACE}" \
+    --from-literal="OPENAI_API_KEY=${OPENAI_API_KEY}" \
+    --dry-run=client -o yaml | kubectl apply -f -
+else
+  echo "==> NOTE: OPENAI_API_KEY not set — skipping ai-service-secret"
+  echo "         Set it later: OPENAI_API_KEY=sk-... devops/argocd/bootstrap-platform-secrets.sh"
+fi
 
 echo "==> Secrets ready (Argo CD will not manage these)"

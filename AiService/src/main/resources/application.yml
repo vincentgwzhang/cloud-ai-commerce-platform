@@ -1,0 +1,112 @@
+spring:
+  application:
+    name: ai-service
+  profiles:
+    default: local
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:commerce_platform}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:vincent}
+    password: ${DB_PASSWORD:1q2w3e4R}
+    hikari:
+      pool-name: AiServiceHikariPool
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ai-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: ${SERVER_PORT:8084}
+
+app:
+  jwt:
+    issuer: ${JWT_ISSUER:auth-service}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:file:../devops/data/keys/public.pem}
+    public-key-fallback-paths:
+      - file:devops/data/keys/public.pem
+      - file:../devops/data/keys/public.pem
+  ai:
+    recommendation-ttl: PT15M
+    ttl-jitter-max-seconds: 60
+    max-recommendations: 5
+    provider: stub
+    memory:
+      ttl: PT2H
+      max-messages: 50
+    openai:
+      # IMPORTANT: do NOT hard-code the key here. Provide it via the OPENAI_API_KEY env var.
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      embedding-model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+      chat-model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+    rag:
+      top-k: ${AI_RAG_TOP_K:4}
+      collection: ${AI_RAG_COLLECTION:products}
+      dedup-ttl: PT24H
+    chroma:
+      base-url: ${CHROMA_BASE_URL:http://localhost:8000}
+      tenant: ${CHROMA_TENANT:default_tenant}
+      database: ${CHROMA_DATABASE:default_database}
+  kafka:
+    max-retries: 3
+    retry-interval-ms: 1000
+    topics:
+      order-created: order-created
+      inventory-reserved: inventory-reserved
+      product-created: product-created
+      product-updated: product-updated
+      product-deleted: product-deleted
+      ai-dlq: ai-dlq
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-}] [%X{traceId:-}] %logger{36} - %msg%n"
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

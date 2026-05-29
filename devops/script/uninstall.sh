@@ -14,6 +14,7 @@ echo "  Minikube uninstall (all services)"
 echo "========================================"
 
 "${SCRIPT_ROOT}/GatewayService/minikube-uninstall.sh"
+"${SCRIPT_ROOT}/AiService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/OrderService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/InventoryService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/ProductService/minikube-uninstall.sh"

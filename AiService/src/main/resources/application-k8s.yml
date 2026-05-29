@@ -1,0 +1,15 @@
+spring:
+  config:
+    activate:
+      on-profile: k8s
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:host.minikube.internal:9092}
+
+app:
+  ai:
+    chroma:
+      base-url: ${CHROMA_BASE_URL:http://host.minikube.internal:8000}

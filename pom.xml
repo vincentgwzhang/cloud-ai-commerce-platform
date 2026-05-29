@@ -24,6 +24,7 @@
         <module>ProductService</module>
         <module>InventoryService</module>
         <module>OrderService</module>
+        <module>AiService</module>
     </modules>
 
     <properties>

@@ -40,9 +40,25 @@ services:
       - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
 
+  # ChromaDB vector store for ai-service RAG (Minikube pods reach it via host.minikube.internal:8000).
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma-minikube
+    ports:
+      - "8000:8000"
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/data
+    networks:
+      - default
+      - minikube
+
 networks:
   minikube:
     external: true
 
 volumes:
   grafana_data:
+  chroma_data:
