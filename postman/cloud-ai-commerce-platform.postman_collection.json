@@ -2590,7 +2590,7 @@
                 "recommendations"
               ]
             },
-            "description": "Requires JWT. Returns personalized product recommendations for the authenticated user."
+            "description": "Requires JWT. Personalized recommendations for the authenticated user via user-based collaborative filtering (\"shoppers with similar history\"), with a global-popularity fallback on cold start.\n\n**Needs behaviour signals first:** place a few orders while logged in (Order Service \u2192 Create Order) \u2014 order/inventory events feed the signal store. Result is cached per user (cache-aside) and invalidated when new signals arrive. Empty `items` means no signals yet."
           },
           "response": []
         },
@@ -2612,7 +2612,7 @@
                 "{{inventoryProductCode}}"
               ]
             },
-            "description": "Requires JWT. Returns related-product recommendations for a given product code (default `IPHONE17` via `inventoryProductCode`)."
+            "description": "Requires JWT. Related-product recommendations seeded by a single product code (default `IPHONE17` via `inventoryProductCode`): products co-purchased by shoppers who also bought this one, excluding the seed. Falls back to popularity when there is no co-occurrence yet."
           },
           "response": []
         },
