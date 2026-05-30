@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "Cloud AI Commerce Platform",
-    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service \u2192 Login** \u2014 saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** \u2014 when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product / Inventory / Order** \u2014 run **Login** first; Bearer token is sent automatically.\n\n## Services (local defaults)\n\n| Variable | Port | Notes |\n|----------|------|-------|\n| `authServiceBaseUrl` | 8080 | Login directly |\n| `gatewayServiceBaseUrl` | 8088 | API gateway |\n| `productServiceBaseUrl` | 8081 | Direct |\n| `inventoryServiceBaseUrl` | 8082 | Direct |\n| `orderServiceBaseUrl` | 8083 | Direct |\n\n## Inventory product codes (seed)\n\n`IPHONE17`, `RTX5090`, `PS6` \u2014 see `devops/db/init.sql`.\n\nRe-import after collection updates.",
+    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service \u2192 Login** \u2014 saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** \u2014 when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product / Inventory / Order** \u2014 run **Login** first; Bearer token is sent automatically.\n\n## Services (local defaults)\n\n| Variable | Port | Notes |\n|----------|------|-------|\n| `authServiceBaseUrl` | 8080 | Login directly |\n| `gatewayServiceBaseUrl` | 8088 | API gateway |\n| `productServiceBaseUrl` | 8081 | Direct |\n| `inventoryServiceBaseUrl` | 8082 | Direct |\n| `orderServiceBaseUrl` | 8083 | Direct |\n| `aiServiceBaseUrl` | 8084 | Direct (not via gateway) |\n\n## Inventory product codes (seed)\n\n`IPHONE17`, `RTX5090`, `PS6` \u2014 see `devops/db/init.sql`.\n\nRe-import after collection updates.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -68,6 +68,16 @@
     {
       "key": "orderServiceBaseUrl",
       "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "aiServiceBaseUrl",
+      "value": "http://localhost:8084",
+      "type": "string"
+    },
+    {
+      "key": "aiConversationId",
+      "value": "",
       "type": "string"
     },
     {
@@ -1393,6 +1403,144 @@
                   "response": []
                 }
               ]
+            },
+            {
+              "name": "AiService",
+              "description": "Spring Boot Actuator for **ai-service (8084)** (`{{aiServiceBaseUrl}}`).",
+              "item": [
+                {
+                  "name": "Health",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{aiServiceBaseUrl}}/actuator/health",
+                      "host": [
+                        "{{aiServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "health"
+                      ]
+                    },
+                    "description": "**ai-service (8084)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Info",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{aiServiceBaseUrl}}/actuator/info",
+                      "host": [
+                        "{{aiServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "info"
+                      ]
+                    },
+                    "description": "**ai-service (8084)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Metrics",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{aiServiceBaseUrl}}/actuator/metrics",
+                      "host": [
+                        "{{aiServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "metrics"
+                      ]
+                    },
+                    "description": "**ai-service (8084)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Prometheus",
+                  "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.request.headers.remove('Authorization');"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "auth": {
+                      "type": "noauth"
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{aiServiceBaseUrl}}/actuator/prometheus",
+                      "host": [
+                        "{{aiServiceBaseUrl}}"
+                      ],
+                      "path": [
+                        "actuator",
+                        "prometheus"
+                      ]
+                    },
+                    "description": "**ai-service (8084)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
+                  },
+                  "response": []
+                }
+              ]
             }
           ]
         }
@@ -2218,6 +2366,297 @@
                 "cancel"
               ]
             }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI Service",
+      "description": "Direct to AiService (**8084**). Not proxied by the gateway (gateway only routes Product/Inventory/Order). All `/api/v1/ai/*` business endpoints require a valid JWT \u2014 run **Auth Service \u2192 Login** first.\n\n**Suggested flow:** `Chat` (saves `aiConversationId`) \u2192 `Chat (follow-up)` \u2192 `Get Conversation` \u2192 `Delete Conversation`.\n\n`Ask` (RAG) needs product vectors synced from product events + a valid `OPENAI_API_KEY` configured on the service.",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/health",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "health"
+              ]
+            },
+            "description": "Public health check (no JWT). Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+          },
+          "response": []
+        },
+        {
+          "name": "Chat",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('aiConversationId', '');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const conversationId = pm.response.json().data.conversationId;",
+                  "    pm.collectionVariables.set('aiConversationId', conversationId);",
+                  "    if (pm.environment) {",
+                  "        pm.environment.set('aiConversationId', conversationId);",
+                  "    }",
+                  "    pm.test('conversationId saved for follow-up turns', function () {",
+                  "        pm.expect(conversationId).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Hello, what can you help me with?\"\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/chat",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "Starts a new conversation (no `conversationId` in body). Requires JWT.\n\nOn 200, saves the returned `conversationId` to the `aiConversationId` collection variable so **Chat (follow-up)**, **Get Conversation**, and **Delete Conversation** reuse it."
+          },
+          "response": []
+        },
+        {
+          "name": "Chat (follow-up)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"What did I just ask you?\",\n  \"conversationId\": \"{{aiConversationId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/chat",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "Run after **Chat**. Sends the saved `conversationId` so the service loads prior turns from Redis (conversation memory)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Conversation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/conversation/{{aiConversationId}}",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "conversation",
+                "{{aiConversationId}}"
+              ]
+            },
+            "description": "Requires JWT. Returns the full message history for the saved `aiConversationId`. Expected HTTP 404 if the conversation does not exist (or expired)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Conversation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/conversation/{{aiConversationId}}",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "conversation",
+                "{{aiConversationId}}"
+              ]
+            },
+            "description": "Requires JWT. Deletes the conversation history for the saved `aiConversationId` from Redis."
+          },
+          "response": []
+        },
+        {
+          "name": "Ask (Product RAG)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Which phone do you recommend for photography?\"\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/ask",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "ask"
+              ]
+            },
+            "description": "Requires JWT. Retrieval-Augmented Generation over the product catalog: embeds the question, searches the vector store (ChromaDB), and asks the LLM with retrieved product context.\n\n**Prerequisites:** product vectors synced via Kafka product events + a valid `OPENAI_API_KEY` configured on ai-service. Returns 503 if the external AI dependency is unavailable."
+          },
+          "response": []
+        },
+        {
+          "name": "Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/recommendations",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "recommendations"
+              ]
+            },
+            "description": "Requires JWT. Returns personalized product recommendations for the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Recommendations for Product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/recommendations/{{inventoryProductCode}}",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "recommendations",
+                "{{inventoryProductCode}}"
+              ]
+            },
+            "description": "Requires JWT. Returns related-product recommendations for a given product code (default `IPHONE17` via `inventoryProductCode`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Chat (missing token)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Authorization');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Hello\"\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/chat",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
           },
           "response": []
         }
