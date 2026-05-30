@@ -63,9 +63,9 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse createOrder(CreateOrderRequest request) {
+    public OrderResponse createOrder(CreateOrderRequest request, String username) {
         return idempotencyStore.findPreviousResult(request.requestId())
-                .orElseGet(() -> executeCreateOrder(request));
+                .orElseGet(() -> executeCreateOrder(request, username));
     }
 
     @Transactional(readOnly = true)
@@ -134,7 +134,7 @@ public class OrderService {
         log.warn("Order {} failed: {}", order.getOrderNo(), event.reason());
     }
 
-    private OrderResponse executeCreateOrder(CreateOrderRequest request) {
+    private OrderResponse executeCreateOrder(CreateOrderRequest request, String username) {
         if (!idempotencyStore.tryClaim(request.requestId())) {
             return idempotencyStore.findPreviousResult(request.requestId())
                     .orElseThrow(() -> new DuplicateOrderRequestException(request.requestId()));
@@ -153,6 +153,7 @@ public class OrderService {
             Order order = new Order();
             order.setOrderNo(generateOrderNo());
             order.setProductCode(request.productCode());
+            order.setUsername(username);
             order.setQuantity(request.quantity());
             order.setAmount(unitPrice.multiply(BigDecimal.valueOf(request.quantity())));
             order.setStatus(OrderStatus.CREATED);

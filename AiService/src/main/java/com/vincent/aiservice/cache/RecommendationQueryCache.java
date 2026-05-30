@@ -6,13 +6,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Duration;
 import java.util.Optional;
 
 /**
  * Cache-aside store for per-user recommendation results.
  *
  * <p>Redis is auxiliary: every read/write is wrapped by {@link RedisSafeExecutor} so a Redis
- * outage degrades to live recomputation instead of failing the request.
+ * outage degrades to live recomputation instead of failing the request. A jittered TTL spreads
+ * expirations to avoid a cache-avalanche when many keys were warmed together.
  */
 @Component
 public class RecommendationQueryCache {
@@ -32,15 +34,21 @@ public class RecommendationQueryCache {
     }
 
     public Optional<RecommendationResponse> find(String username) {
-        // TODO: read ai:reco:{username} from Redis and deserialize via jsonMapper
-        return Optional.empty();
+        return RedisSafeExecutor.optional(() -> {
+            String json = redisTemplate.opsForValue().get(AiRedisKeys.recommendation(username));
+            return json == null ? null : jsonMapper.readValue(json, RecommendationResponse.class);
+        });
     }
 
     public void put(String username, RecommendationResponse response) {
-        // TODO: serialize response and SET ai:reco:{username} with RedisTtlJitter-applied TTL
+        RedisSafeExecutor.run(() -> {
+            String json = jsonMapper.writeValueAsString(response);
+            Duration ttl = RedisTtlJitter.apply(aiProperties.recommendationTtl(), aiProperties.ttlJitterMaxSeconds());
+            redisTemplate.opsForValue().set(AiRedisKeys.recommendation(username), json, ttl);
+        });
     }
 
     public void evict(String username) {
-        // TODO: DEL ai:reco:{username}
+        RedisSafeExecutor.run(() -> redisTemplate.delete(AiRedisKeys.recommendation(username)));
     }
 }

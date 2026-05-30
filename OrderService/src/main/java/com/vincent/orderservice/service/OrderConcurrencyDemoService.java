@@ -41,7 +41,8 @@ public class OrderConcurrencyDemoService {
                                         request.productCode(),
                                         request.quantityPerRequest(),
                                         sharedRequestId
-                                )
+                                ),
+                                null
                         );
                         synchronized (orderNos) {
                             orderNos.add(response.orderNo());

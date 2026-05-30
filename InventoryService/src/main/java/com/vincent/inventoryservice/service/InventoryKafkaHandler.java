@@ -32,7 +32,7 @@ public class InventoryKafkaHandler {
         try {
             inventoryService.reserve(event.productCode(), event.quantity(), idempotencyKey);
             eventPublisher.publishReserved(
-                    InventoryReservedEvent.of(event.orderNo(), event.productCode(), event.quantity())
+                    InventoryReservedEvent.of(event.orderNo(), event.productCode(), event.username(), event.quantity())
             );
             BusinessEventLog.info(log, "INVENTORY_RESERVED", event.orderNo(), event.productCode(), event.eventId());
         } catch (InsufficientInventoryException ex) {

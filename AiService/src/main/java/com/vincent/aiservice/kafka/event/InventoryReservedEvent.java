@@ -10,6 +10,7 @@ public record InventoryReservedEvent(
         String eventType,
         String orderNo,
         String productCode,
+        String username,
         int quantity,
         Instant timestamp
 ) {

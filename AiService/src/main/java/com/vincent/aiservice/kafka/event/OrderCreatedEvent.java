@@ -11,6 +11,7 @@ public record OrderCreatedEvent(
         String eventType,
         String orderNo,
         String productCode,
+        String username,
         int quantity,
         BigDecimal amount,
         String requestId,

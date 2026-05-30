@@ -66,6 +66,7 @@ class InventoryKafkaHandlerTest {
                 "ORDER_CREATED",
                 "ORD-1",
                 "IPHONE17",
+                "vincent",
                 1,
                 new BigDecimal("999"),
                 requestId,

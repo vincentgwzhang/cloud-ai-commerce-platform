@@ -32,6 +32,13 @@ public class Order {
     @Column(name = "product_code", nullable = false, length = 64)
     private String productCode;
 
+    /**
+     * Authenticated buyer (JWT subject). Nullable because unauthenticated demo flows
+     * (e.g. the concurrency demo) create orders without a principal.
+     */
+    @Column(name = "username", length = 50)
+    private String username;
+
     @Column(nullable = false)
     private int quantity;
 

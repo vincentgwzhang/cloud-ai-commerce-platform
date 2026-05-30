@@ -43,8 +43,7 @@ public class AiController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String context
     ) {
-        // TODO: resolve username from jwt.getSubject() and delegate to recommendationService.recommend
-        return ApiResponse.ok(null);
+        return ApiResponse.ok(recommendationService.recommend(jwt.getSubject(), context));
     }
 
     @GetMapping("/recommendations/{productCode}")
@@ -52,8 +51,7 @@ public class AiController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable String productCode
     ) {
-        // TODO: resolve username from jwt and delegate to recommendationService.recommendForProduct
-        return ApiResponse.ok(null);
+        return ApiResponse.ok(recommendationService.recommendForProduct(jwt.getSubject(), productCode));
     }
 
     @PostMapping("/chat")

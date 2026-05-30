@@ -11,18 +11,20 @@ public record InventoryReservedEvent(
         String eventType,
         String orderNo,
         String productCode,
+        String username,
         int quantity,
         Instant timestamp
 ) {
 
     public static final String EVENT_TYPE = "INVENTORY_RESERVED";
 
-    public static InventoryReservedEvent of(String orderNo, String productCode, int quantity) {
+    public static InventoryReservedEvent of(String orderNo, String productCode, String username, int quantity) {
         return new InventoryReservedEvent(
                 UUID.randomUUID().toString(),
                 EVENT_TYPE,
                 orderNo,
                 productCode,
+                username,
                 quantity,
                 Instant.now()
         );

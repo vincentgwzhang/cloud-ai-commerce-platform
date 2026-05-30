@@ -115,6 +115,10 @@ CREATE TABLE IF NOT EXISTS orders (
     id           BIGINT PRIMARY KEY AUTO_INCREMENT,
     order_no     VARCHAR(64)  NOT NULL UNIQUE,
     product_code VARCHAR(64)  NOT NULL,
+    -- Authenticated buyer (JWT subject). Nullable: demo/unauthenticated flows create orders
+    -- without a principal. Propagated downstream via order-created so ai-service can attribute
+    -- per-user behaviour signals.
+    username     VARCHAR(50)  NULL,
     quantity     INT          NOT NULL,
     amount       DECIMAL(12, 2) NOT NULL,
     status       VARCHAR(32)  NOT NULL,

@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
+
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -33,8 +35,14 @@ public class OrderController {
     }
 
     @PostMapping
-    public ApiResponse<OrderResponse> create(@Valid @RequestBody CreateOrderRequest request) {
-        return ApiResponse.ok("created", orderService.createOrder(request));
+    public ApiResponse<OrderResponse> create(
+            Principal principal,
+            @Valid @RequestBody CreateOrderRequest request
+    ) {
+        // For the JWT resource server, principal is a JwtAuthenticationToken whose name is the
+        // token subject (the username). Null on unauthenticated demo flows.
+        String username = principal != null ? principal.getName() : null;
+        return ApiResponse.ok("created", orderService.createOrder(request, username));
     }
 
     @GetMapping("/{orderNo}")

@@ -12,9 +12,11 @@ import com.vincent.orderservice.exception.OrderNotFoundException;
 import com.vincent.orderservice.kafka.OrderEventPublisher;
 import com.vincent.orderservice.kafka.event.InventoryFailedEvent;
 import com.vincent.orderservice.kafka.event.InventoryReservedEvent;
+import com.vincent.orderservice.kafka.event.OrderCreatedEvent;
 import com.vincent.orderservice.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -52,7 +54,7 @@ class OrderServiceTest {
         OrderResponse cached = sampleResponse("ORD-1");
         when(idempotencyStore.findPreviousResult("req-1")).thenReturn(Optional.of(cached));
 
-        assertThat(orderService.createOrder(new CreateOrderRequest("IPHONE17", 1, "req-1"))).isEqualTo(cached);
+        assertThat(orderService.createOrder(new CreateOrderRequest("IPHONE17", 1, "req-1"), "vincent")).isEqualTo(cached);
         verify(eventPublisher, never()).publishOrderCreated(any());
     }
 
@@ -69,11 +71,13 @@ class OrderServiceTest {
             return order;
         });
 
-        OrderResponse response = orderService.createOrder(new CreateOrderRequest("IPHONE17", 2, "req-2"));
+        OrderResponse response = orderService.createOrder(new CreateOrderRequest("IPHONE17", 2, "req-2"), "vincent");
 
         assertThat(response.status()).isEqualTo(OrderStatus.CREATED);
         assertThat(response.amount()).isEqualByComparingTo("1998.00");
-        verify(eventPublisher).publishOrderCreated(any());
+        ArgumentCaptor<OrderCreatedEvent> eventCaptor = ArgumentCaptor.forClass(OrderCreatedEvent.class);
+        verify(eventPublisher).publishOrderCreated(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().username()).isEqualTo("vincent");
         verify(orderMetrics).recordOrderCreated();
     }
 
@@ -124,7 +128,7 @@ class OrderServiceTest {
         when(idempotencyStore.tryClaim("req-bad")).thenReturn(true);
         when(orderRepository.findByRequestId("req-bad")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.createOrder(new CreateOrderRequest("UNKNOWN", 1, "req-bad")))
+        assertThatThrownBy(() -> orderService.createOrder(new CreateOrderRequest("UNKNOWN", 1, "req-bad"), "vincent"))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(idempotencyStore).releaseClaim("req-bad");
     }
@@ -136,7 +140,7 @@ class OrderServiceTest {
                 .thenReturn(Optional.empty());
         when(idempotencyStore.tryClaim("req-dup")).thenReturn(false);
 
-        assertThatThrownBy(() -> orderService.createOrder(new CreateOrderRequest("IPHONE17", 1, "req-dup")))
+        assertThatThrownBy(() -> orderService.createOrder(new CreateOrderRequest("IPHONE17", 1, "req-dup"), "vincent"))
                 .isInstanceOf(DuplicateOrderRequestException.class);
     }
 

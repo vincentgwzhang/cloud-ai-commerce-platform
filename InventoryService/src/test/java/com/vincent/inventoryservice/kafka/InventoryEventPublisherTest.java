@@ -47,7 +47,7 @@ class InventoryEventPublisherTest {
         when(kafkaTemplate.send(eq("inventory-reserved"), eq("ORD-1"), org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
-        publisher.publishReserved(InventoryReservedEvent.of("ORD-1", "IPHONE17", 1));
+        publisher.publishReserved(InventoryReservedEvent.of("ORD-1", "IPHONE17", "vincent", 1));
 
         verify(kafkaTemplate).send(eq("inventory-reserved"), eq("ORD-1"), org.mockito.ArgumentMatchers.anyString());
         verify(metrics).recordInventoryEventPublished();
