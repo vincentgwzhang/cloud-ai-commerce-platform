@@ -1,7 +1,6 @@
 package com.vincent.aiservice.kafka;
 
 import com.vincent.aiservice.kafka.event.InventoryReservedEvent;
-import com.vincent.aiservice.observability.MdcKeys;
 import com.vincent.aiservice.observability.MdcSupport;
 import com.vincent.aiservice.service.AiMetrics;
 import com.vincent.aiservice.service.InteractionSignalService;

@@ -27,7 +27,6 @@ import java.util.Optional;
 public class RsaKeyGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(RsaKeyGenerator.class);
-    private static final int KEY_SIZE = 2048;
 
     private final JwtProperties jwtProperties;
     private final JwtKeyLocationResolver keyLocationResolver;
