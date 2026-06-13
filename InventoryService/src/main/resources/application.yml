@@ -47,9 +47,9 @@ app:
   inventory:
     cache-ttl: PT30M
     idempotency-ttl: PT24H
-    lock-ttl: PT10S
-    local-cache-ttl: PT30S
-    ttl-jitter-max-seconds: 60
+    lock-ttl: PT10M
+    local-cache-ttl: PT30M
+    ttl-jitter-max-seconds: 3600
     hot-product-codes:
       - IPHONE17
       - RTX5090

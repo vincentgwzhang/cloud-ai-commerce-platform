@@ -14,6 +14,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -22,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,6 +52,10 @@ class ProductCacheServiceTest {
     private LocalHotProductCache localHotCache;
     @Mock
     private ProductCacheMetrics cacheMetrics;
+    @Mock
+    private RedissonClient redissonClient;
+    @Mock
+    private RLock redissonLock;
 
     private ProductCacheService productCacheService;
 
@@ -71,7 +79,8 @@ class ProductCacheServiceTest {
                 cacheLock,
                 localHotCache,
                 cacheMetrics,
-                properties
+                properties,
+                redissonClient
         );
     }
 
@@ -145,6 +154,114 @@ class ProductCacheServiceTest {
         assertThatThrownBy(() -> productCacheService.getById(404L))
                 .isInstanceOf(ProductNotFoundException.class);
         verify(productRepository, never()).findById(any());
+    }
+
+    @Test
+    void getByIdFallsBackToDatabaseAndLocalCacheWhenRedisLockUnavailable() {
+        ProductResponse localResponse = sampleResponse();
+        when(localHotCache.get(1L)).thenReturn(Optional.empty()).thenReturn(Optional.of(localResponse));
+        when(valueOperations.get("product:detail:1")).thenReturn(null);
+        when(valueOperations.get("product:notfound:1")).thenReturn(null);
+        when(cacheLock.tryAcquire("product:detail:1:lock")).thenThrow(new RuntimeException("redis down"));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(sampleEntity(1L)));
+
+        ProductResponse first = productCacheService.getById(1L);
+        ProductResponse second = productCacheService.getById(1L);
+
+        assertThat(first.id()).isEqualTo(1L);
+        assertThat(second.id()).isEqualTo(1L);
+        verify(localHotCache).put(eq(1L), any(ProductResponse.class));
+        verify(productRepository, times(1)).findById(1L);
+        verify(valueOperations, never()).set(eq("product:detail:1"), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void getByIdWaitFallbackWarmsLocalCacheWhenPeerDoesNotFillRedis() {
+        ProductResponse localResponse = ProductResponse.from(sampleEntity(2L));
+        when(localHotCache.get(2L)).thenReturn(Optional.empty()).thenReturn(Optional.of(localResponse));
+        when(valueOperations.get("product:detail:2")).thenReturn(null);
+        when(valueOperations.get("product:notfound:2")).thenReturn(null);
+        when(cacheLock.tryAcquire("product:detail:2:lock")).thenReturn(null);
+        when(productRepository.findById(2L)).thenReturn(Optional.of(sampleEntity(2L)));
+
+        ProductResponse first = productCacheService.getById(2L);
+        ProductResponse second = productCacheService.getById(2L);
+
+        assertThat(first.id()).isEqualTo(2L);
+        assertThat(second.id()).isEqualTo(2L);
+        verify(localHotCache).put(eq(2L), any(ProductResponse.class));
+        verify(productRepository, times(1)).findById(2L);
+    }
+
+    @Test
+    void getByIdWithRedissonReturnsCachedValueAndWarmsLocalHotCache() throws Exception {
+        ProductResponse response = sampleResponse();
+        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
+        when(valueOperations.get("product:detail:1")).thenReturn(mapper.writeValueAsString(response));
+
+        ProductResponse result = productCacheService.getByIdWithRedisson(1L);
+
+        assertThat(result.name()).isEqualTo("Product 1");
+        verify(productRepository, never()).findById(any());
+        verify(cacheMetrics).recordHit();
+        verify(localHotCache).put(eq(1L), any(ProductResponse.class));
+        verify(redissonClient, never()).getLock(anyString());
+    }
+
+    @Test
+    void getByIdWithRedissonLoadsDatabaseOnMissWithLock() throws Exception {
+        when(valueOperations.get("product:detail:99")).thenReturn(null);
+        when(valueOperations.get("product:notfound:99")).thenReturn(null);
+        when(redissonClient.getLock("product:detail:99:lock")).thenReturn(redissonLock);
+        when(redissonLock.tryLock(0, Duration.ofSeconds(30).toMillis(), TimeUnit.MILLISECONDS)).thenReturn(true);
+        when(redissonLock.isHeldByCurrentThread()).thenReturn(true);
+        when(productRepository.findById(99L)).thenReturn(Optional.of(sampleEntity(99L)));
+
+        ProductResponse result = productCacheService.getByIdWithRedisson(99L);
+
+        assertThat(result.id()).isEqualTo(99L);
+        verify(valueOperations).set(eq("product:detail:99"), anyString(), any(Duration.class));
+        verify(redissonLock).unlock();
+    }
+
+    @Test
+    void getByIdWithRedissonFallsBackToDatabaseAndLocalCacheWhenLockUnavailable() throws Exception {
+        ProductResponse localResponse = sampleResponse();
+        when(localHotCache.get(1L)).thenReturn(Optional.empty()).thenReturn(Optional.of(localResponse));
+        when(valueOperations.get("product:detail:1")).thenReturn(null);
+        when(valueOperations.get("product:notfound:1")).thenReturn(null);
+        when(redissonClient.getLock("product:detail:1:lock")).thenReturn(redissonLock);
+        when(redissonLock.tryLock(0, Duration.ofSeconds(30).toMillis(), TimeUnit.MILLISECONDS))
+                .thenThrow(new RuntimeException("redis down"));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(sampleEntity(1L)));
+
+        ProductResponse first = productCacheService.getByIdWithRedisson(1L);
+        ProductResponse second = productCacheService.getByIdWithRedisson(1L);
+
+        assertThat(first.id()).isEqualTo(1L);
+        assertThat(second.id()).isEqualTo(1L);
+        verify(localHotCache).put(eq(1L), any(ProductResponse.class));
+        verify(productRepository, times(1)).findById(1L);
+        verify(redissonLock, never()).unlock();
+        verify(valueOperations, never()).set(eq("product:detail:1"), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void getByIdWithRedissonWaitsForPeerWhenLockIsBusy() throws Exception {
+        ProductResponse response = ProductResponse.from(sampleEntity(2L));
+        JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
+        when(valueOperations.get("product:detail:2"))
+                .thenReturn(null)
+                .thenReturn(mapper.writeValueAsString(response));
+        when(valueOperations.get("product:notfound:2")).thenReturn(null);
+        when(redissonClient.getLock("product:detail:2:lock")).thenReturn(redissonLock);
+        when(redissonLock.tryLock(0, Duration.ofSeconds(30).toMillis(), TimeUnit.MILLISECONDS)).thenReturn(false);
+
+        ProductResponse result = productCacheService.getByIdWithRedisson(2L);
+
+        assertThat(result.id()).isEqualTo(2L);
+        verify(productRepository, never()).findById(any());
+        verify(redissonLock, never()).unlock();
     }
 
     private static Product sampleEntity(Long id) {
