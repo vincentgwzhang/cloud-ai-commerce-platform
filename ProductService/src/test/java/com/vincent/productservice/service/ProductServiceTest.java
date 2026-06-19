@@ -5,12 +5,15 @@ import com.vincent.productservice.config.ProductCacheProperties;
 import com.vincent.productservice.dto.ProductResponse;
 import com.vincent.productservice.entity.Product;
 import com.vincent.productservice.entity.ProductStatus;
+import com.vincent.productservice.mapper.ProductMapper;
 import com.vincent.productservice.repository.ProductRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mapstruct.factory.Mappers;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,6 +34,9 @@ class ProductServiceTest {
 
     @Mock
     private ProductCacheProperties cacheProperties;
+
+    @Spy
+    private ProductMapper productMapper = Mappers.getMapper(ProductMapper.class);
 
     @InjectMocks
     private ProductService productService;

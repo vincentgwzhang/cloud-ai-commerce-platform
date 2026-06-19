@@ -14,6 +14,14 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 
+ * @SpringBootTest(classes = AuthServiceApplication.class)
+ * classes = AuthServiceApplication.class 不是永远必需，
+ * 但它明确告诉 @SpringBootTest：请按 AuthService 的主启动类来启动完整测试上下文。
+ * 
+ * 
+ */
 @SpringBootTest(classes = AuthServiceApplication.class)
 @ActiveProfiles("test")
 class JwtServiceTest {

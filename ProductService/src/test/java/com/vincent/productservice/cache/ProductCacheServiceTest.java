@@ -6,7 +6,9 @@ import com.vincent.productservice.dto.ProductResponse;
 import com.vincent.productservice.entity.Product;
 import com.vincent.productservice.entity.ProductStatus;
 import com.vincent.productservice.exception.ProductNotFoundException;
+import com.vincent.productservice.mapper.ProductMapper;
 import com.vincent.productservice.repository.ProductRepository;
+import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +41,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProductCacheServiceTest {
+
+    private static final ProductMapper PRODUCT_MAPPER = Mappers.getMapper(ProductMapper.class);
 
     @Mock
     private StringRedisTemplate redisTemplate;
@@ -76,6 +80,7 @@ class ProductCacheServiceTest {
                 redisTemplate,
                 JsonMapper.builder().findAndAddModules().build(),
                 productRepository,
+                PRODUCT_MAPPER,
                 cacheLock,
                 localHotCache,
                 cacheMetrics,
@@ -176,8 +181,22 @@ class ProductCacheServiceTest {
     }
 
     @Test
+    void getByIdWritesNullMarkerWhenLockUnavailableAndDatabaseMissing() {
+        when(localHotCache.get(1L)).thenReturn(Optional.empty());
+        when(valueOperations.get("product:detail:1")).thenReturn(null);
+        when(valueOperations.get("product:notfound:1")).thenReturn(null);
+        when(cacheLock.tryAcquire("product:detail:1:lock")).thenThrow(new RuntimeException("redis down"));
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productCacheService.getById(1L))
+                .isInstanceOf(ProductNotFoundException.class);
+
+        verify(valueOperations).set(eq("product:notfound:1"), eq("1"), any(Duration.class));
+    }
+
+    @Test
     void getByIdWaitFallbackWarmsLocalCacheWhenPeerDoesNotFillRedis() {
-        ProductResponse localResponse = ProductResponse.from(sampleEntity(2L));
+        ProductResponse localResponse = PRODUCT_MAPPER.toResponse(sampleEntity(2L));
         when(localHotCache.get(2L)).thenReturn(Optional.empty()).thenReturn(Optional.of(localResponse));
         when(valueOperations.get("product:detail:2")).thenReturn(null);
         when(valueOperations.get("product:notfound:2")).thenReturn(null);
@@ -191,6 +210,20 @@ class ProductCacheServiceTest {
         assertThat(second.id()).isEqualTo(2L);
         verify(localHotCache).put(eq(2L), any(ProductResponse.class));
         verify(productRepository, times(1)).findById(2L);
+    }
+
+    @Test
+    void getByIdWaitFallbackWritesNullMarkerWhenPeerDoesNotFillRedisAndDatabaseMissing() {
+        when(localHotCache.get(2L)).thenReturn(Optional.empty());
+        when(valueOperations.get("product:detail:2")).thenReturn(null);
+        when(valueOperations.get("product:notfound:2")).thenReturn(null);
+        when(cacheLock.tryAcquire("product:detail:2:lock")).thenReturn(null);
+        when(productRepository.findById(2L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productCacheService.getById(2L))
+                .isInstanceOf(ProductNotFoundException.class);
+
+        verify(valueOperations).set(eq("product:notfound:2"), eq("1"), any(Duration.class));
     }
 
     @Test
@@ -248,7 +281,7 @@ class ProductCacheServiceTest {
 
     @Test
     void getByIdWithRedissonWaitsForPeerWhenLockIsBusy() throws Exception {
-        ProductResponse response = ProductResponse.from(sampleEntity(2L));
+        ProductResponse response = PRODUCT_MAPPER.toResponse(sampleEntity(2L));
         JsonMapper mapper = JsonMapper.builder().findAndAddModules().build();
         when(valueOperations.get("product:detail:2"))
                 .thenReturn(null)
@@ -279,6 +312,6 @@ class ProductCacheServiceTest {
     }
 
     private static ProductResponse sampleResponse() {
-        return ProductResponse.from(sampleEntity(1L));
+        return PRODUCT_MAPPER.toResponse(sampleEntity(1L));
     }
 }

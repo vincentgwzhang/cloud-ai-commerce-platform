@@ -1,4 +1,4 @@
-create database commerce_platform;
+-- create database commerce_platform;
 
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

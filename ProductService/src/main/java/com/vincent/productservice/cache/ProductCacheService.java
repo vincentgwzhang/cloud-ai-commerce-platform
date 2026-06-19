@@ -1,26 +1,28 @@
 package com.vincent.productservice.cache;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.json.JsonMapper;
-import com.vincent.productservice.config.ProductCacheProperties;
-import com.vincent.productservice.dto.ProductResponse;
-import com.vincent.productservice.entity.Product;
-import com.vincent.productservice.entity.ProductStatus;
-import com.vincent.productservice.exception.ProductNotFoundException;
-import com.vincent.productservice.repository.ProductRepository;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Service;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import com.vincent.productservice.config.ProductCacheProperties;
+import com.vincent.productservice.dto.ProductResponse;
+import com.vincent.productservice.entity.Product;
+import com.vincent.productservice.entity.ProductStatus;
+import com.vincent.productservice.exception.ProductNotFoundException;
+import com.vincent.productservice.mapper.ProductMapper;
+import com.vincent.productservice.repository.ProductRepository;
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Cache-aside for product detail with SETNX lock on miss (anti cache breakdown / thundering herd).
@@ -36,6 +38,7 @@ public class ProductCacheService {
     private final StringRedisTemplate redisTemplate;
     private final JsonMapper jsonMapper;
     private final ProductRepository productRepository;
+    private final ProductMapper productMapper;
     private final ProductCacheLock cacheLock;
     private final LocalHotProductCache localHotCache;
     private final ProductCacheMetrics cacheMetrics;
@@ -51,6 +54,7 @@ public class ProductCacheService {
             StringRedisTemplate redisTemplate,
             JsonMapper jsonMapper,
             ProductRepository productRepository,
+            ProductMapper productMapper,
             ProductCacheLock cacheLock,
             LocalHotProductCache localHotCache,
             ProductCacheMetrics cacheMetrics,
@@ -60,6 +64,7 @@ public class ProductCacheService {
         this.redisTemplate = redisTemplate;
         this.jsonMapper = jsonMapper;
         this.productRepository = productRepository;
+        this.productMapper = productMapper;
         this.cacheLock = cacheLock;
         this.localHotCache = localHotCache;
         this.cacheMetrics = cacheMetrics;
@@ -139,11 +144,11 @@ public class ProductCacheService {
             lockToken = cacheLock.tryAcquire(lockKey);
         } catch (Exception ex) {
             log.warn("Redis lock unavailable, loading product id={} from DB directly: {}", id, ex.getMessage());
-            return loadFromDatabaseAndRememberHot(id);
+            return loadFromDatabaseAndRememberHotOrWriteNullMarker(id);
         }
         if (lockToken == null) {
             log.debug("Cache miss, waiting for lock holder product id={}", id);
-            return waitForPeerLoad(id, () -> loadFromDatabaseAndRememberHot(id));
+            return waitForPeerLoad(id, () -> loadFromDatabaseAndRememberHotOrWriteNullMarker(id));
         }
 
         try {
@@ -225,7 +230,7 @@ public class ProductCacheService {
         cacheMetrics.recordMiss();
         if (redissonClient == null) {
             log.warn("RedissonClient is not available, loading product id={} from DB directly", id);
-            return loadFromDatabaseAndRememberHot(id);
+            return loadFromDatabaseAndRememberHotOrWriteNullMarker(id);
         }
 
         String lockKey = ProductRedisKeys.detailLock(id);
@@ -235,15 +240,15 @@ public class ProductCacheService {
             locked = lock.tryLock(0, lockTtl.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return loadFromDatabaseAndRememberHot(id);
+            return loadFromDatabaseAndRememberHotOrWriteNullMarker(id);
         } catch (Exception ex) {
             log.warn("Redisson lock unavailable, loading product id={} from DB directly: {}", id, ex.getMessage());
-            return loadFromDatabaseAndRememberHot(id);
+            return loadFromDatabaseAndRememberHotOrWriteNullMarker(id);
         }
 
         if (!locked) {
             log.debug("Redisson lock busy, waiting for lock holder product id={}", id);
-            return waitForPeerLoad(id, () -> loadFromDatabaseAndRememberHot(id));
+            return waitForPeerLoad(id, () -> loadFromDatabaseAndRememberHotOrWriteNullMarker(id));
         }
 
         try {
@@ -319,13 +324,22 @@ public class ProductCacheService {
         Product product = productRepository.findById(id)
                 .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
                 .orElseThrow(() -> new ProductNotFoundException(id));
-        return ProductResponse.from(product);
+        return productMapper.toResponse(product);
     }
 
     private ProductResponse loadFromDatabaseAndRememberHot(Long id) {
         ProductResponse loaded = loadFromDatabase(id);
         rememberHot(id, loaded);
         return loaded;
+    }
+
+    private ProductResponse loadFromDatabaseAndRememberHotOrWriteNullMarker(Long id) {
+        try {
+            return loadFromDatabaseAndRememberHot(id);
+        } catch (ProductNotFoundException ex) {
+            writeNullMarker(ProductRedisKeys.notFound(id));
+            throw ex;
+        }
     }
 
     private void releaseCacheLock(String lockKey, String lockToken) {

@@ -4,6 +4,8 @@ import com.vincent.productservice.config.ProductCacheProperties;
 import com.vincent.productservice.dto.ProductResponse;
 import com.vincent.productservice.entity.Product;
 import com.vincent.productservice.entity.ProductStatus;
+import com.vincent.productservice.mapper.ProductMapper;
+import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -14,6 +16,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LocalHotProductCacheTest {
+
+    private static final ProductMapper PRODUCT_MAPPER = Mappers.getMapper(ProductMapper.class);
 
     @Test
     void storesAndReturnsWithinTtl() {
@@ -27,7 +31,7 @@ class LocalHotProductCacheTest {
                 List.of(1L)
         );
         LocalHotProductCache cache = new LocalHotProductCache(properties);
-        ProductResponse response = ProductResponse.from(sample(1L));
+        ProductResponse response = PRODUCT_MAPPER.toResponse(sample(1L));
         cache.put(1L, response);
         assertThat(cache.get(1L)).contains(response);
     }

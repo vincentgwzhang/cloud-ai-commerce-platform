@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -84,5 +85,30 @@ class ProductApiIntegrationTest {
                                 .claim("roles", java.util.List.of("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(3));
+    }
+
+    @Test
+    void adminDemoRequiresAdminRole() throws Exception {
+        mockMvc.perform(get("/api/v1/products/admin-demo")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/products/admin-demo")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ADMIN only"));
+    }
+
+    @Test
+    void userDemoAllowsUserAndAdminRoles() throws Exception {
+        mockMvc.perform(get("/api/v1/products/user-demo")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ADMIN or USER"));
+
+        mockMvc.perform(get("/api/v1/products/user-demo")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ADMIN or USER"));
     }
 }

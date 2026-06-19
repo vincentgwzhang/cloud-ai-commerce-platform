@@ -14,6 +14,7 @@ import com.vincent.orderservice.observability.BusinessEventLog;
 import com.vincent.orderservice.kafka.event.InventoryFailedEvent;
 import com.vincent.orderservice.kafka.event.InventoryReservedEvent;
 import com.vincent.orderservice.kafka.event.OrderCreatedEvent;
+import com.vincent.orderservice.mapper.OrderMapper;
 import com.vincent.orderservice.repository.OrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,19 +48,22 @@ public class OrderService {
     private final OrderQueryCache orderQueryCache;
     private final OrderEventPublisher eventPublisher;
     private final OrderMetrics orderMetrics;
+    private final OrderMapper orderMapper;
 
     public OrderService(
             OrderRepository orderRepository,
             OrderIdempotencyStore idempotencyStore,
             OrderQueryCache orderQueryCache,
             OrderEventPublisher eventPublisher,
-            OrderMetrics orderMetrics
+            OrderMetrics orderMetrics,
+            OrderMapper orderMapper
     ) {
         this.orderRepository = orderRepository;
         this.idempotencyStore = idempotencyStore;
         this.orderQueryCache = orderQueryCache;
         this.eventPublisher = eventPublisher;
         this.orderMetrics = orderMetrics;
+        this.orderMapper = orderMapper;
     }
 
     @Transactional
@@ -73,7 +77,7 @@ public class OrderService {
         return orderQueryCache.get(orderNo)
                 .orElseGet(() -> {
                     Order order = loadByOrderNo(orderNo);
-                    OrderResponse response = OrderResponse.from(order);
+                    OrderResponse response = orderMapper.toResponse(order);
                     orderQueryCache.put(response);
                     return response;
                 });
@@ -94,7 +98,7 @@ public class OrderService {
         Order saved = orderRepository.save(order);
         orderQueryCache.evict(orderNo);
         BusinessEventLog.info(log, "ORDER_CANCELLED", orderNo, saved.getProductCode(), null);
-        return OrderResponse.from(saved);
+        return orderMapper.toResponse(saved);
     }
 
     /**
@@ -160,7 +164,7 @@ public class OrderService {
             order.setRequestId(request.requestId());
 
             Order saved = orderRepository.save(order);
-            OrderResponse response = OrderResponse.from(saved);
+            OrderResponse response = orderMapper.toResponse(saved);
 
             // PENDING ITEM: future outbox pattern — same transaction as insert
             OrderCreatedEvent createdEvent = OrderCreatedEvent.from(saved);

@@ -20,6 +20,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Solution 1:
+ * @SpringBootTest 把项目启动成 Spring 容器, 但是不启动 web
+ * @AutoConfigureMockMvc 给测试提供一个不用真实端口的 HTTP 请求入口
+ * 
+ * Solution 2:
+ * @SpringBootTest(webEnvironment = RANDOM_PORT) 完整应用上下文 + 真正启动内嵌 Web 服务器，开一个随机端口。
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

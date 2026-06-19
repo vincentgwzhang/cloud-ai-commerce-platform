@@ -11,6 +11,7 @@ import com.vincent.inventoryservice.entity.Inventory;
 import com.vincent.inventoryservice.exception.InsufficientInventoryException;
 import com.vincent.inventoryservice.exception.InventoryNotFoundException;
 import com.vincent.inventoryservice.lock.InventoryDistributedLock;
+import com.vincent.inventoryservice.mapper.InventoryMapper;
 import com.vincent.inventoryservice.repository.InventoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ public class InventoryService {
     private final LocalHotInventoryCache localHotInventoryCache;
     private final InventoryProperties inventoryProperties;
     private final InventoryMetrics metrics;
+    private final InventoryMapper inventoryMapper;
 
     public InventoryService(
             InventoryRepository inventoryRepository,
@@ -45,7 +47,8 @@ public class InventoryService {
             InventoryCacheConsistency cacheConsistency,
             LocalHotInventoryCache localHotInventoryCache,
             InventoryProperties inventoryProperties,
-            InventoryMetrics metrics
+            InventoryMetrics metrics,
+            InventoryMapper inventoryMapper
     ) {
         this.inventoryRepository = inventoryRepository;
         this.inventoryRedisCache = inventoryRedisCache;
@@ -56,6 +59,7 @@ public class InventoryService {
         this.localHotInventoryCache = localHotInventoryCache;
         this.inventoryProperties = inventoryProperties;
         this.metrics = metrics;
+        this.inventoryMapper = inventoryMapper;
     }
 
     @Transactional(readOnly = true)
@@ -63,14 +67,14 @@ public class InventoryService {
         return inventoryQueryCache.get(productCode, () -> {
             Inventory inventory = loadInventory(productCode);
             warmCacheIfNeeded(inventory);
-            return InventoryResponse.from(inventory);
+            return inventoryMapper.toResponse(inventory);
         });
     }
 
     public void warmCache(Inventory inventory) {
         warmCacheIfNeeded(inventory);
         if (isHotSku(inventory.getProductCode())) {
-            localHotInventoryCache.put(inventory.getProductCode(), InventoryResponse.from(inventory));
+            localHotInventoryCache.put(inventory.getProductCode(), inventoryMapper.toResponse(inventory));
         }
     }
 
@@ -135,7 +139,7 @@ public class InventoryService {
             Inventory saved = inventoryRepository.save(inventory);
 
             writeThroughCache(saved);
-            InventoryResponse response = InventoryResponse.from(saved);
+            InventoryResponse response = inventoryMapper.toResponse(saved);
             idempotencyStore.saveResult(requestId, response);
             metrics.recordReservationSuccess();
             log.debug("Reserved {} units of {}", quantity, productCode);
@@ -171,7 +175,7 @@ public class InventoryService {
             inventory.setAvailableStock(inventory.getAvailableStock() + quantity);
             Inventory saved = inventoryRepository.save(inventory);
             writeThroughCache(saved);
-            InventoryResponse response = InventoryResponse.from(saved);
+            InventoryResponse response = inventoryMapper.toResponse(saved);
             idempotencyStore.saveResult(requestId, response);
             return response;
         } finally {
@@ -199,7 +203,7 @@ public class InventoryService {
             inventory.setReservedStock(inventory.getReservedStock() - quantity);
             Inventory saved = inventoryRepository.save(inventory);
             writeThroughCache(saved);
-            InventoryResponse response = InventoryResponse.from(saved);
+            InventoryResponse response = inventoryMapper.toResponse(saved);
             idempotencyStore.saveResult(requestId, response);
             //PENDING ITEM: future Kafka event — inventory.deducted
             return response;
@@ -230,7 +234,7 @@ public class InventoryService {
     private void writeThroughCache(Inventory inventory) {
         inventoryRedisCache.putAvailable(inventory.getProductCode(), inventory.getAvailableStock());
         if (isHotSku(inventory.getProductCode())) {
-            localHotInventoryCache.put(inventory.getProductCode(), InventoryResponse.from(inventory));
+            localHotInventoryCache.put(inventory.getProductCode(), inventoryMapper.toResponse(inventory));
         }
         cacheConsistency.invalidateQueryView(inventory.getProductCode());
     }

@@ -13,12 +13,15 @@ import com.vincent.orderservice.kafka.OrderEventPublisher;
 import com.vincent.orderservice.kafka.event.InventoryFailedEvent;
 import com.vincent.orderservice.kafka.event.InventoryReservedEvent;
 import com.vincent.orderservice.kafka.event.OrderCreatedEvent;
+import com.vincent.orderservice.mapper.OrderMapper;
 import com.vincent.orderservice.repository.OrderRepository;
+import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -45,6 +48,9 @@ class OrderServiceTest {
     private OrderEventPublisher eventPublisher;
     @Mock
     private OrderMetrics orderMetrics;
+
+    @Spy
+    private OrderMapper orderMapper = Mappers.getMapper(OrderMapper.class);
 
     @InjectMocks
     private OrderService orderService;

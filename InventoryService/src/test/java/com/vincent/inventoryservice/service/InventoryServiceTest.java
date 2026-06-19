@@ -11,11 +11,14 @@ import com.vincent.inventoryservice.entity.Inventory;
 import com.vincent.inventoryservice.exception.InsufficientInventoryException;
 import com.vincent.inventoryservice.exception.InventoryNotFoundException;
 import com.vincent.inventoryservice.lock.InventoryDistributedLock;
+import com.vincent.inventoryservice.mapper.InventoryMapper;
 import com.vincent.inventoryservice.repository.InventoryRepository;
+import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
@@ -52,6 +55,9 @@ class InventoryServiceTest {
     private InventoryProperties inventoryProperties;
     @Mock
     private InventoryMetrics metrics;
+
+    @Spy
+    private InventoryMapper inventoryMapper = Mappers.getMapper(InventoryMapper.class);
 
     @InjectMocks
     private InventoryService inventoryService;

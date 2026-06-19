@@ -34,6 +34,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 
+ * @MockitoSettings 是 Mockito JUnit 5 扩展提供的配置注解，用来调整 Mockito 在这个测试类里的行为。
+ * strictness 意思是 控制 Mockito 对 “stub” 的检查严格不严格。
+ * 
+ * Strictness.LENIENT = 宽松模式
+ * Strictness.STRICT_STUBS = 严格模式
+ * Strictness.WARN = 警告模式。不一定让测试失败，但会输出 Mockito 的警告信息。
+ * 
+ * 
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AuthServiceTest {

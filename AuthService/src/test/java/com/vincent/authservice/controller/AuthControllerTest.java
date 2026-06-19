@@ -22,6 +22,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 搭一个轻量级的 MVC 测试环境, 只拿 AuthController 出来测，不要启动整个项目
+ * 
+ * @WebMvcTest 测 Controller/Web MVC 层 默认就会提供 MockMvc
+ * @AutoConfigureMockMvc 目的是 手动定制 MockMvc 配置， addFilters 的意思是说绕过Security 检查体制
+ */
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {

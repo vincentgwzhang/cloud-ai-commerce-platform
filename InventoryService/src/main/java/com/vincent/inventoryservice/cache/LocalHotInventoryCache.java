@@ -1,56 +1,51 @@
 package com.vincent.inventoryservice.cache;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.vincent.inventoryservice.config.InventoryProperties;
 import com.vincent.inventoryservice.dto.InventoryResponse;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
-/** L1 cache for high-traffic SKUs — shields Redis hot keys. */
+/**
+ * L1 cache for high-traffic SKUs — shields Redis hot keys.
+ *
+ * <p>Caffeine is a purpose-built local cache:
+ * 1. It is thread-safe, so callers can use it from concurrent request threads.
+ * 2. expireAfterWrite replaces manual expiresAt checks on every get.
+ * 3. maximumSize avoids unbounded in-process memory growth.
+ */
 @Component
 public class LocalHotInventoryCache {
 
-    private static final class Entry {
-        final InventoryResponse value;
-        final Instant expiresAt;
+    private final Cache<String, InventoryResponse> store;
 
-        Entry(InventoryResponse value, Instant expiresAt) {
-            this.value = value;
-            this.expiresAt = expiresAt;
-        }
-
-        boolean alive() {
-            return Instant.now().isBefore(expiresAt);
-        }
-    }
-
-    private final Map<String, Entry> store = new ConcurrentHashMap<>();
-    private final Duration localTtl;
-
-    public LocalHotInventoryCache(com.vincent.inventoryservice.config.InventoryProperties properties) {
-        this.localTtl = properties.localCacheTtl();
+    public LocalHotInventoryCache(InventoryProperties properties) {
+        this.store = Caffeine.newBuilder()
+                .expireAfterWrite(properties.localCacheTtl().toNanos(), TimeUnit.NANOSECONDS)
+                .maximumSize(resolveMaximumSize(properties))
+                .build();
     }
 
     public Optional<InventoryResponse> get(String productCode) {
-        Entry entry = store.get(productCode);
-        if (entry == null) {
-            return Optional.empty();
-        }
-        if (!entry.alive()) {
-            store.remove(productCode);
-            return Optional.empty();
-        }
-        return Optional.of(entry.value);
+        return Optional.ofNullable(store.getIfPresent(productCode));
     }
 
     public void put(String productCode, InventoryResponse response) {
-        store.put(productCode, new Entry(response, Instant.now().plus(localTtl)));
+        store.put(productCode, response);
     }
 
     public void evict(String productCode) {
-        store.remove(productCode);
+        store.invalidate(productCode);
+    }
+
+    private static long resolveMaximumSize(InventoryProperties properties) {
+        var hotProductCodes = properties.hotProductCodes();
+        if (hotProductCodes == null || hotProductCodes.isEmpty()) {
+            return 1L;
+        }
+        return hotProductCodes.size();
     }
 }

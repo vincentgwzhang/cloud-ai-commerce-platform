@@ -5,6 +5,7 @@ import com.vincent.productservice.config.ProductCacheProperties;
 import com.vincent.productservice.dto.ProductResponse;
 import com.vincent.productservice.entity.Product;
 import com.vincent.productservice.entity.ProductStatus;
+import com.vincent.productservice.mapper.ProductMapper;
 import com.vincent.productservice.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,21 +18,24 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductCacheService productCacheService;
     private final ProductCacheProperties cacheProperties;
+    private final ProductMapper productMapper;
 
     public ProductService(
             ProductRepository productRepository,
             ProductCacheService productCacheService,
-            ProductCacheProperties cacheProperties
+            ProductCacheProperties cacheProperties,
+            ProductMapper productMapper
     ) {
         this.productRepository = productRepository;
         this.productCacheService = productCacheService;
         this.cacheProperties = cacheProperties;
+        this.productMapper = productMapper;
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponse> listActiveProducts() {
         return productRepository.findByStatusOrderByIdAsc(ProductStatus.ACTIVE).stream()
-                .map(ProductResponse::from)
+                .map(productMapper::toResponse)
                 .toList();
     }
 
@@ -48,7 +52,7 @@ public class ProductService {
         return productCacheService.getHotList().orElseGet(() -> {
             List<ProductResponse> loaded = productRepository.findByIdInOrderByIdAsc(hotIds).stream()
                     .filter(product -> product.getStatus() == ProductStatus.ACTIVE)
-                    .map(ProductResponse::from)
+                    .map(productMapper::toResponse)
                     .toList();
             productCacheService.putHotList(loaded);
             return loaded;
@@ -56,6 +60,6 @@ public class ProductService {
     }
 
     public void warmCache(Product product) {
-        productCacheService.put(ProductResponse.from(product));
+        productCacheService.put(productMapper.toResponse(product));
     }
 }

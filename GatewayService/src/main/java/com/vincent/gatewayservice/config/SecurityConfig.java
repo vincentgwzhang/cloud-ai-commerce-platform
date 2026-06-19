@@ -26,6 +26,7 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/api/inventory/health").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/orders/health").permitAll()
                         .pathMatchers("/api/inventory/demo/**", "/api/orders/demo/**").permitAll()
+                        .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .pathMatchers("/actuator/health", "/actuator/health/**", "/actuator/info",
                                 "/actuator/metrics", "/actuator/metrics/**", "/actuator/prometheus").permitAll()
                         .anyExchange().authenticated())
