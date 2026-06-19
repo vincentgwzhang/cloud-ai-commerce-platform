@@ -33,6 +33,11 @@ app:
       local-cache-ttl: 30s
       ttl-jitter-max-seconds: 0
       hot-product-ids: 1,2,3
+  kafka:
+    topics:
+      product-created: product-created
+      product-updated: product-updated
+      product-deleted: product-deleted
 
 logging:
   level:

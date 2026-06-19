@@ -2,25 +2,19 @@ package com.vincent.aiservice.rag.llm;
 
 import com.vincent.aiservice.config.OpenAiProperties;
 import com.vincent.aiservice.exception.ExternalAiException;
-import org.springframework.core.ParameterizedTypeReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * OpenAI chat-completions backend ({@code POST /v1/chat/completions}).
  */
 @Component
 public class OpenAiLlmClient implements LlmClient {
-
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
-            new ParameterizedTypeReference<>() {
-            };
 
     private final RestClient restClient;
     private final OpenAiProperties properties;
@@ -38,26 +32,27 @@ public class OpenAiLlmClient implements LlmClient {
     @Override
     public String complete(String systemPrompt, String userPrompt) {
         requireApiKey();
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", properties.chatModel());
-        body.put("temperature", 0.2);
-        body.put("messages", List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user", "content", userPrompt)
-        ));
+        OpenAiChatRequest body = new OpenAiChatRequest(
+                properties.chatModel(),
+                0.2,
+                List.of(
+                        new OpenAiChatMessage("system", systemPrompt),
+                        new OpenAiChatMessage("user", userPrompt)
+                )
+        );
 
-        Map<String, Object> response = post(body);
+        OpenAiChatResponse response = post(body);
         return extractContent(response);
     }
 
-    private Map<String, Object> post(Map<String, Object> body) {
+    private OpenAiChatResponse post(OpenAiChatRequest body) {
         try {
             return restClient.post()
                     .uri("/v1/chat/completions")
                     .header("Authorization", "Bearer " + properties.apiKey())
                     .body(body)
                     .retrieve()
-                    .body(MAP_TYPE);
+                    .body(OpenAiChatResponse.class);
         } catch (RestClientException ex) {
             throw new ExternalAiException("OpenAI chat request failed: " + ex.getMessage(), ex);
         }
@@ -69,17 +64,41 @@ public class OpenAiLlmClient implements LlmClient {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static String extractContent(Map<String, Object> response) {
-        Object choices = response.get("choices");
-        if (!(choices instanceof List<?> list) || list.isEmpty()) {
+    private static String extractContent(OpenAiChatResponse response) {
+        List<OpenAiChatChoice> choices = response == null ? null : response.choices();
+        if (choices == null || choices.isEmpty()) {
             throw new ExternalAiException("OpenAI chat response had no choices");
         }
-        Map<String, Object> first = (Map<String, Object>) list.get(0);
-        Map<String, Object> message = (Map<String, Object>) first.get("message");
-        if (message == null || !(message.get("content") instanceof String content)) {
+        OpenAiChatMessage message = choices.get(0).message();
+        if (message == null || !StringUtils.hasText(message.content())) {
             throw new ExternalAiException("OpenAI chat response missing message content");
         }
-        return content;
+        return message.content();
+    }
+
+    private record OpenAiChatRequest(
+            String model,
+            double temperature,
+            List<OpenAiChatMessage> messages
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record OpenAiChatResponse(
+            List<OpenAiChatChoice> choices
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record OpenAiChatChoice(
+            OpenAiChatMessage message
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record OpenAiChatMessage(
+            String role,
+            String content
+    ) {
     }
 }

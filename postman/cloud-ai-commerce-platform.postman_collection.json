@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "Cloud AI Commerce Platform",
-    "description": "API collection for commerce platform microservices.\n\n## Auth tokens\n\n1. **Auth Service \u2192 Login** \u2014 saves `accessToken` (JWT) and `refreshToken`.\n2. **Refresh Token** \u2014 when the JWT expires, rotate with `{{refreshToken}}`.\n3. **Product / Inventory / Order** \u2014 run **Login** first; Bearer token is sent automatically.\n\n## Services (local defaults)\n\n| Variable | Port | Notes |\n|----------|------|-------|\n| `authServiceBaseUrl` | 8080 | Login directly |\n| `gatewayServiceBaseUrl` | 8088 | API gateway |\n| `productServiceBaseUrl` | 8081 | Direct |\n| `inventoryServiceBaseUrl` | 8082 | Direct |\n| `orderServiceBaseUrl` | 8083 | Direct |\n| `aiServiceBaseUrl` | 8084 | Direct (not via gateway) |\n\n## Inventory product codes (seed)\n\n`IPHONE17`, `RTX5090`, `PS6` \u2014 see `devops/db/init.sql`.\n\nRe-import after collection updates.",
+    "description": "Controller extraction summary:\n\n- GatewayHealthController: GET /api/gateway/health\n- AuthController: POST /api/v1/auth/login, POST /api/v1/auth/refresh, GET /api/v1/auth/validate, GET /api/v1/auth/health\n- ProductController: GET /api/v1/products/health, GET /api/v1/products, GET /api/v1/products/hot, GET /api/v1/products/admin-demo, GET /api/v1/products/user-demo, GET /api/v1/products/{id}\n- ProductRagSyncController: POST /api/v1/product-sync/products, PUT /api/v1/product-sync/products/{productCode}, DELETE /api/v1/product-sync/products/{productCode}\n- InventoryController: GET /api/inventory/health, GET /api/inventory/{productCode}, POST /api/inventory/reserve, POST /api/inventory/release, POST /api/inventory/deduct, POST /api/inventory/demo/concurrent-reserve\n- OrderController: GET /api/orders/health, POST /api/orders, GET /api/orders/{orderNo}, GET /api/orders/status/{orderNo}, POST /api/orders/{orderNo}/cancel, POST /api/orders/demo/concurrent-create\n- AiController: GET /api/v1/ai/health, GET /api/v1/ai/recommendations, GET /api/v1/ai/recommendations/{productCode}, POST /api/v1/ai/chat\n- RagController: POST /api/v1/ai/ask\n- ConversationController: GET /api/v1/ai/conversation/{conversationId}, DELETE /api/v1/ai/conversation/{conversationId}\n\nGatewayService currently proxies Product, Inventory, and Order routes. AuthService and AiService are direct-service folders.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -21,14 +21,9 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "const token = pm.collectionVariables.get('accessToken')",
-          "    || (pm.environment ? pm.environment.get('accessToken') : '');",
-          "",
+          "const token = pm.collectionVariables.get('accessToken') || (pm.environment ? pm.environment.get('accessToken') : '');",
           "if (token) {",
-          "    pm.request.headers.upsert({",
-          "        key: 'Authorization',",
-          "        value: 'Bearer ' + token",
-          "    });",
+          "  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });",
           "}"
         ]
       }
@@ -56,16 +51,6 @@
       "type": "string"
     },
     {
-      "key": "inventoryProductCode",
-      "value": "IPHONE17",
-      "type": "string"
-    },
-    {
-      "key": "inventoryRequestId",
-      "value": "",
-      "type": "string"
-    },
-    {
       "key": "orderServiceBaseUrl",
       "value": "http://localhost:8083",
       "type": "string"
@@ -76,7 +61,42 @@
       "type": "string"
     },
     {
-      "key": "aiConversationId",
+      "key": "username",
+      "value": "admin",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "123456",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "productCode",
+      "value": "POSTMAN-PHONE-001",
+      "type": "string"
+    },
+    {
+      "key": "inventoryProductCode",
+      "value": "IPHONE17",
+      "type": "string"
+    },
+    {
+      "key": "inventoryRequestId",
       "value": "",
       "type": "string"
     },
@@ -91,23 +111,27 @@
       "type": "string"
     },
     {
-      "key": "accessToken",
+      "key": "aiConversationId",
       "value": "",
       "type": "string"
     },
     {
-      "key": "refreshToken",
+      "key": "API-KEY",
       "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chromaCollectionId",
+      "value": "aefc4bfa-af79-40d6-b2bf-113bb07ec6c9",
       "type": "string"
     }
   ],
   "item": [
     {
       "name": "Gateway Service",
-      "description": "Port **8088** \u2014 single entry for Product, Inventory, and Order. JWT validated at the edge. Use subfolders below; **Auth Service \u2192 Login** still goes to port 8080.",
       "item": [
         {
-          "name": "Health",
+          "name": "Gateway Health",
           "request": {
             "method": "GET",
             "header": [],
@@ -122,13 +146,15 @@
                 "health"
               ]
             },
-            "description": "Gateway process health (no JWT)."
+            "description": "GatewayHealthController.health",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         },
         {
-          "name": "ProductService",
-          "description": "Same APIs as **Product Service**, routed through gateway (`{{gatewayServiceBaseUrl}}`, port 8088). Run **Auth Service \u2192 Login** first.",
+          "name": "Product via Gateway",
           "item": [
             {
               "name": "Health",
@@ -147,12 +173,15 @@
                     "health"
                   ]
                 },
-                "description": "Public health check. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+                "description": "ProductController.health",
+                "auth": {
+                  "type": "noauth"
+                }
               },
               "response": []
             },
             {
-              "name": "List Products",
+              "name": "List Active Products",
               "request": {
                 "method": "GET",
                 "header": [],
@@ -167,33 +196,12 @@
                     "products"
                   ]
                 },
-                "description": "Requires valid JWT. Returns seed catalog (iPhone 17, RTX 5090, PS6)."
+                "description": "ProductController.listProducts"
               },
               "response": []
             },
             {
-              "name": "Get Product by ID",
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products/1",
-                  "host": [
-                    "{{gatewayServiceBaseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "products",
-                    "1"
-                  ]
-                },
-                "description": "Requires valid JWT. Product id=1 is iPhone 17 (Redis cache-aside)."
-              },
-              "response": []
-            },
-            {
-              "name": "Hot Products",
+              "name": "List Hot Products",
               "request": {
                 "method": "GET",
                 "header": [],
@@ -209,46 +217,78 @@
                     "hot"
                   ]
                 },
-                "description": "Requires valid JWT. Preloaded hot product IDs (1, 2, 3)."
+                "description": "ProductController.listHotProducts"
               },
               "response": []
             },
             {
-              "name": "List Products (missing token)",
-              "event": [
-                {
-                  "listen": "prerequest",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.request.headers.remove('Authorization');"
-                    ]
-                  }
-                }
-              ],
+              "name": "Admin Demo",
               "request": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products",
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products/admin-demo",
                   "host": [
                     "{{gatewayServiceBaseUrl}}"
                   ],
                   "path": [
                     "api",
                     "v1",
-                    "products"
+                    "products",
+                    "admin-demo"
                   ]
                 },
-                "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
+                "description": "ProductController.adminOnlyDemo; requires ADMIN role."
+              },
+              "response": []
+            },
+            {
+              "name": "User/Admin Demo",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products/user-demo",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products",
+                    "user-demo"
+                  ]
+                },
+                "description": "ProductController.userOrAdminDemo; requires USER or ADMIN role."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Product by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/v1/products/{{productId}}",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products",
+                    "{{productId}}"
+                  ]
+                },
+                "description": "ProductController.getProduct"
               },
               "response": []
             }
-          ]
+          ],
+          "description": "Same ProductController endpoints through GatewayService."
         },
         {
-          "name": "InventoryService",
-          "description": "Same APIs as **Inventory Service**, routed through gateway (`{{gatewayServiceBaseUrl}}`, port 8088). Run **Auth Service \u2192 Login** first.",
+          "name": "Inventory via Gateway",
           "item": [
             {
               "name": "Health",
@@ -266,7 +306,10 @@
                     "health"
                   ]
                 },
-                "description": "Public. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+                "description": "InventoryController.health",
+                "auth": {
+                  "type": "noauth"
+                }
               },
               "response": []
             },
@@ -286,40 +329,12 @@
                     "{{inventoryProductCode}}"
                   ]
                 },
-                "description": "Requires JWT. Set `inventoryProductCode` (default `IPHONE17`)."
+                "description": "InventoryController.get"
               },
               "response": []
             },
             {
-              "name": "Reserve Stock",
-              "event": [
-                {
-                  "listen": "prerequest",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                      "pm.collectionVariables.set('inventoryRequestId', requestId);",
-                      "if (pm.environment) {",
-                      "    pm.environment.set('inventoryRequestId', requestId);",
-                      "}"
-                    ]
-                  }
-                },
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "if (pm.response.code === 200) {",
-                      "    pm.test('reserve succeeded', function () {",
-                      "        pm.expect(pm.response.json().success).to.eql(true);",
-                      "    });",
-                      "}"
-                    ]
-                  }
-                }
-              ],
+              "name": "Reserve Inventory",
               "request": {
                 "method": "POST",
                 "header": [
@@ -328,10 +343,6 @@
                     "value": "application/json"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-                },
                 "url": {
                   "raw": "{{gatewayServiceBaseUrl}}/api/inventory/reserve",
                   "host": [
@@ -343,56 +354,34 @@
                     "reserve"
                   ]
                 },
-                "description": "Reserves stock (available \u2192 reserved). Saves `inventoryRequestId` for idempotency demo."
-              },
-              "response": []
-            },
-            {
-              "name": "Reserve (idempotent retry)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
+                "description": "InventoryController.reserve; generates a fresh requestId before send.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-                },
-                "url": {
-                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/reserve",
-                  "host": [
-                    "{{gatewayServiceBaseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "inventory",
-                    "reserve"
-                  ]
-                },
-                "description": "Run after **Reserve Stock** with the same `inventoryRequestId`. Should return the same result without double-reserving."
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
               },
-              "response": []
-            },
-            {
-              "name": "Release Stock",
+              "response": [],
               "event": [
                 {
                   "listen": "prerequest",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                      "pm.collectionVariables.set('inventoryRequestId', requestId);",
-                      "if (pm.environment) {",
-                      "    pm.environment.set('inventoryRequestId', requestId);",
-                      "}"
+                      "const id = 'inv-' + Date.now();",
+                      "pm.collectionVariables.set('inventoryRequestId', id);",
+                      "if (pm.environment) pm.environment.set('inventoryRequestId', id);"
                     ]
                   }
                 }
-              ],
+              ]
+            },
+            {
+              "name": "Release Inventory",
               "request": {
                 "method": "POST",
                 "header": [
@@ -401,10 +390,6 @@
                     "value": "application/json"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-                },
                 "url": {
                   "raw": "{{gatewayServiceBaseUrl}}/api/inventory/release",
                   "host": [
@@ -416,27 +401,34 @@
                     "release"
                   ]
                 },
-                "description": "Moves quantity from reserved back to available. Use after **Reserve Stock**."
+                "description": "InventoryController.release; generates a fresh requestId before send.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
               },
-              "response": []
-            },
-            {
-              "name": "Deduct Stock",
+              "response": [],
               "event": [
                 {
                   "listen": "prerequest",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                      "pm.collectionVariables.set('inventoryRequestId', requestId);",
-                      "if (pm.environment) {",
-                      "    pm.environment.set('inventoryRequestId', requestId);",
-                      "}"
+                      "const id = 'inv-' + Date.now();",
+                      "pm.collectionVariables.set('inventoryRequestId', id);",
+                      "if (pm.environment) pm.environment.set('inventoryRequestId', id);"
                     ]
                   }
                 }
-              ],
+              ]
+            },
+            {
+              "name": "Deduct Inventory",
               "request": {
                 "method": "POST",
                 "header": [
@@ -445,10 +437,6 @@
                     "value": "application/json"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-                },
                 "url": {
                   "raw": "{{gatewayServiceBaseUrl}}/api/inventory/deduct",
                   "host": [
@@ -460,27 +448,35 @@
                     "deduct"
                   ]
                 },
-                "description": "Consumes reserved stock (e.g. after payment). Reserve first, then deduct."
+                "description": "InventoryController.deduct; generates a fresh requestId before send.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
               },
-              "response": []
-            },
-            {
-              "name": "Concurrent Reserve Demo",
+              "response": [],
               "event": [
                 {
                   "listen": "prerequest",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.request.headers.remove('Authorization');"
+                      "const id = 'inv-' + Date.now();",
+                      "pm.collectionVariables.set('inventoryRequestId', id);",
+                      "if (pm.environment) pm.environment.set('inventoryRequestId', id);"
                     ]
                   }
                 }
-              ],
+              ]
+            },
+            {
+              "name": "Concurrent Reserve Demo",
               "request": {
-                "auth": {
-                  "type": "noauth"
-                },
                 "method": "POST",
                 "header": [
                   {
@@ -488,10 +484,6 @@
                     "value": "application/json"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"productCode\": \"RTX5090\",\n  \"concurrentRequests\": 30,\n  \"quantityPerRequest\": 1\n}"
-                },
                 "url": {
                   "raw": "{{gatewayServiceBaseUrl}}/api/inventory/demo/concurrent-reserve",
                   "host": [
@@ -504,46 +496,24 @@
                     "concurrent-reserve"
                   ]
                 },
-                "description": "Public stress demo (no JWT). RTX5090 seed stock = 20; expect successes \u2264 20."
-              },
-              "response": []
-            },
-            {
-              "name": "Get Inventory (missing token)",
-              "event": [
-                {
-                  "listen": "prerequest",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.request.headers.remove('Authorization');"
-                    ]
+                "description": "InventoryController.concurrentDemo",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"concurrentRequests\": 20,\n  \"quantityPerRequest\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
                   }
                 }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{gatewayServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
-                  "host": [
-                    "{{gatewayServiceBaseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "inventory",
-                    "{{inventoryProductCode}}"
-                  ]
-                },
-                "description": "Strips Authorization. Expected HTTP 401."
               },
               "response": []
             }
-          ]
+          ],
+          "description": "Same InventoryController endpoints through GatewayService."
         },
         {
-          "name": "OrderService",
-          "description": "Same APIs as **Order Service**, routed through gateway (`{{gatewayServiceBaseUrl}}`, port 8088). Run **Auth Service \u2192 Login** first.",
+          "name": "Order via Gateway",
           "item": [
             {
               "name": "Health",
@@ -560,36 +530,16 @@
                     "orders",
                     "health"
                   ]
+                },
+                "description": "OrderController.health",
+                "auth": {
+                  "type": "noauth"
                 }
               },
               "response": []
             },
             {
               "name": "Create Order",
-              "event": [
-                {
-                  "listen": "prerequest",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                      "pm.collectionVariables.set('orderRequestId', requestId);"
-                    ]
-                  }
-                },
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "if (pm.response.code === 200) {",
-                      "    const orderNo = pm.response.json().data.orderNo;",
-                      "    pm.collectionVariables.set('lastOrderNo', orderNo);",
-                      "}"
-                    ]
-                  }
-                }
-              ],
               "request": {
                 "method": "POST",
                 "header": [
@@ -598,10 +548,6 @@
                     "value": "application/json"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"productCode\": \"IPHONE17\",\n  \"quantity\": 1,\n  \"requestId\": \"{{orderRequestId}}\"\n}"
-                },
                 "url": {
                   "raw": "{{gatewayServiceBaseUrl}}/api/orders",
                   "host": [
@@ -611,9 +557,48 @@
                     "api",
                     "orders"
                   ]
+                },
+                "description": "OrderController.create; saves data.orderNo into {{lastOrderNo}}.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{orderRequestId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               },
-              "response": []
+              "response": [],
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const id = 'order-' + Date.now();",
+                      "pm.collectionVariables.set('orderRequestId', id);",
+                      "if (pm.environment) pm.environment.set('orderRequestId', id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('save order number', function () {",
+                      "  const json = pm.response.json();",
+                      "  const orderNo = json.data && json.data.orderNo;",
+                      "  if (orderNo) {",
+                      "    pm.collectionVariables.set('lastOrderNo', orderNo);",
+                      "    if (pm.environment) pm.environment.set('lastOrderNo', orderNo);",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Get Order",
@@ -630,7 +615,8 @@
                     "orders",
                     "{{lastOrderNo}}"
                   ]
-                }
+                },
+                "description": "OrderController.get"
               },
               "response": []
             },
@@ -650,7 +636,8 @@
                     "status",
                     "{{lastOrderNo}}"
                   ]
-                }
+                },
+                "description": "OrderController.status"
               },
               "response": []
             },
@@ -670,950 +657,58 @@
                     "{{lastOrderNo}}",
                     "cancel"
                   ]
+                },
+                "description": "OrderController.cancel"
+              },
+              "response": []
+            },
+            {
+              "name": "Concurrent Create Demo",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{gatewayServiceBaseUrl}}/api/orders/demo/concurrent-create",
+                  "host": [
+                    "{{gatewayServiceBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders",
+                    "demo",
+                    "concurrent-create"
+                  ]
+                },
+                "description": "OrderController.concurrentDemo",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"concurrentRequests\": 20,\n  \"quantityPerRequest\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               },
               "response": []
             }
-          ]
-        },
-        {
-          "name": "Observability",
-          "description": "Actuator endpoints per service. **Note:** gateway routes only cover `/api/*` business paths \u2014 actuator is called on each service's **direct port** (8080\u20138083, 8088). See `devops/docs/observability/local-validation.md`.",
-          "item": [
-            {
-              "name": "AuthService",
-              "description": "Spring Boot Actuator for **auth-service (8080)** (`{{authServiceBaseUrl}}`).",
-              "item": [
-                {
-                  "name": "Health",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{authServiceBaseUrl}}/actuator/health",
-                      "host": [
-                        "{{authServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "health"
-                      ]
-                    },
-                    "description": "**auth-service (8080)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Info",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{authServiceBaseUrl}}/actuator/info",
-                      "host": [
-                        "{{authServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "info"
-                      ]
-                    },
-                    "description": "**auth-service (8080)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Metrics",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{authServiceBaseUrl}}/actuator/metrics",
-                      "host": [
-                        "{{authServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "metrics"
-                      ]
-                    },
-                    "description": "**auth-service (8080)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Prometheus",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{authServiceBaseUrl}}/actuator/prometheus",
-                      "host": [
-                        "{{authServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "prometheus"
-                      ]
-                    },
-                    "description": "**auth-service (8080)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                }
-              ]
-            },
-            {
-              "name": "Gateway",
-              "description": "Spring Boot Actuator for **gateway-service (8088)** (`{{gatewayServiceBaseUrl}}`).",
-              "item": [
-                {
-                  "name": "Health",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{gatewayServiceBaseUrl}}/actuator/health",
-                      "host": [
-                        "{{gatewayServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "health"
-                      ]
-                    },
-                    "description": "**gateway-service (8088)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Info",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{gatewayServiceBaseUrl}}/actuator/info",
-                      "host": [
-                        "{{gatewayServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "info"
-                      ]
-                    },
-                    "description": "**gateway-service (8088)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Metrics",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{gatewayServiceBaseUrl}}/actuator/metrics",
-                      "host": [
-                        "{{gatewayServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "metrics"
-                      ]
-                    },
-                    "description": "**gateway-service (8088)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Prometheus",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{gatewayServiceBaseUrl}}/actuator/prometheus",
-                      "host": [
-                        "{{gatewayServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "prometheus"
-                      ]
-                    },
-                    "description": "**gateway-service (8088)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Gateway Routes",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{gatewayServiceBaseUrl}}/actuator/gateway/routes",
-                      "host": [
-                        "{{gatewayServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "gateway",
-                        "routes"
-                      ]
-                    },
-                    "description": "**gateway-service (8088)** \u2014 `/actuator/gateway/routes`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                }
-              ]
-            },
-            {
-              "name": "ProductService",
-              "description": "Spring Boot Actuator for **product-service (8081)** (`{{productServiceBaseUrl}}`).",
-              "item": [
-                {
-                  "name": "Health",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{productServiceBaseUrl}}/actuator/health",
-                      "host": [
-                        "{{productServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "health"
-                      ]
-                    },
-                    "description": "**product-service (8081)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Info",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{productServiceBaseUrl}}/actuator/info",
-                      "host": [
-                        "{{productServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "info"
-                      ]
-                    },
-                    "description": "**product-service (8081)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Metrics",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{productServiceBaseUrl}}/actuator/metrics",
-                      "host": [
-                        "{{productServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "metrics"
-                      ]
-                    },
-                    "description": "**product-service (8081)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Prometheus",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{productServiceBaseUrl}}/actuator/prometheus",
-                      "host": [
-                        "{{productServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "prometheus"
-                      ]
-                    },
-                    "description": "**product-service (8081)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                }
-              ]
-            },
-            {
-              "name": "InventoryService",
-              "description": "Spring Boot Actuator for **inventory-service (8082)** (`{{inventoryServiceBaseUrl}}`).",
-              "item": [
-                {
-                  "name": "Health",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{inventoryServiceBaseUrl}}/actuator/health",
-                      "host": [
-                        "{{inventoryServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "health"
-                      ]
-                    },
-                    "description": "**inventory-service (8082)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Info",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{inventoryServiceBaseUrl}}/actuator/info",
-                      "host": [
-                        "{{inventoryServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "info"
-                      ]
-                    },
-                    "description": "**inventory-service (8082)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Metrics",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{inventoryServiceBaseUrl}}/actuator/metrics",
-                      "host": [
-                        "{{inventoryServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "metrics"
-                      ]
-                    },
-                    "description": "**inventory-service (8082)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Prometheus",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{inventoryServiceBaseUrl}}/actuator/prometheus",
-                      "host": [
-                        "{{inventoryServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "prometheus"
-                      ]
-                    },
-                    "description": "**inventory-service (8082)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                }
-              ]
-            },
-            {
-              "name": "OrderService",
-              "description": "Spring Boot Actuator for **order-service (8083)** (`{{orderServiceBaseUrl}}`).",
-              "item": [
-                {
-                  "name": "Health",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{orderServiceBaseUrl}}/actuator/health",
-                      "host": [
-                        "{{orderServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "health"
-                      ]
-                    },
-                    "description": "**order-service (8083)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Info",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{orderServiceBaseUrl}}/actuator/info",
-                      "host": [
-                        "{{orderServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "info"
-                      ]
-                    },
-                    "description": "**order-service (8083)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Metrics",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{orderServiceBaseUrl}}/actuator/metrics",
-                      "host": [
-                        "{{orderServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "metrics"
-                      ]
-                    },
-                    "description": "**order-service (8083)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Prometheus",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{orderServiceBaseUrl}}/actuator/prometheus",
-                      "host": [
-                        "{{orderServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "prometheus"
-                      ]
-                    },
-                    "description": "**order-service (8083)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                }
-              ]
-            },
-            {
-              "name": "AiService",
-              "description": "Spring Boot Actuator for **ai-service (8084)** (`{{aiServiceBaseUrl}}`).",
-              "item": [
-                {
-                  "name": "Health",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{aiServiceBaseUrl}}/actuator/health",
-                      "host": [
-                        "{{aiServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "health"
-                      ]
-                    },
-                    "description": "**ai-service (8084)** \u2014 `/actuator/health`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Info",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{aiServiceBaseUrl}}/actuator/info",
-                      "host": [
-                        "{{aiServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "info"
-                      ]
-                    },
-                    "description": "**ai-service (8084)** \u2014 `/actuator/info`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Metrics",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{aiServiceBaseUrl}}/actuator/metrics",
-                      "host": [
-                        "{{aiServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "metrics"
-                      ]
-                    },
-                    "description": "**ai-service (8084)** \u2014 `/actuator/metrics`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Prometheus",
-                  "event": [
-                    {
-                      "listen": "prerequest",
-                      "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                          "pm.request.headers.remove('Authorization');"
-                        ]
-                      }
-                    }
-                  ],
-                  "request": {
-                    "auth": {
-                      "type": "noauth"
-                    },
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{aiServiceBaseUrl}}/actuator/prometheus",
-                      "host": [
-                        "{{aiServiceBaseUrl}}"
-                      ],
-                      "path": [
-                        "actuator",
-                        "prometheus"
-                      ]
-                    },
-                    "description": "**ai-service (8084)** \u2014 `/actuator/prometheus`. Direct service port (actuator not proxied by gateway business routes)."
-                  },
-                  "response": []
-                }
-              ]
-            }
-          ]
+          ],
+          "description": "Same OrderController endpoints through GatewayService."
         }
-      ]
+      ],
+      "description": "GatewayHealthController plus proxied Product/Inventory/Order routes."
     },
     {
       "name": "Auth Service",
-      "description": "Recommended order: **Login** \u2192 **Refresh Token** (when JWT expires) \u2192 **Validate Token**.\n\nVariables: `accessToken` (Bearer JWT), `refreshToken` (body for `/refresh` only).",
       "item": [
         {
-          "name": "Health",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{authServiceBaseUrl}}/api/v1/auth/health",
-              "host": [
-                "{{authServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "health"
-              ]
-            },
-            "description": "Sends Bearer token automatically after Login (API does not require it). Check **Headers** tab for `Authorization`."
-          },
-          "response": []
-        },
-        {
           "name": "Login",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.request.headers.remove('Authorization');"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    const token = json.accessToken;",
-                  "    const refresh = json.refreshToken;",
-                  "    pm.collectionVariables.set('accessToken', token);",
-                  "    pm.collectionVariables.set('refreshToken', refresh);",
-                  "    if (pm.environment) {",
-                  "        pm.environment.set('accessToken', token);",
-                  "        pm.environment.set('refreshToken', refresh);",
-                  "    }",
-                  "    pm.test('accessToken saved for entire collection', function () {",
-                  "        pm.expect(token).to.be.a('string').and.not.empty;",
-                  "    });",
-                  "    pm.test('refreshToken saved for refresh endpoint', function () {",
-                  "        pm.expect(refresh).to.be.a('string').and.not.empty;",
-                  "    });",
-                  "    console.log('accessToken updated \u2014 next requests will send Authorization header.');",
-                  "}"
-                ]
-              }
-            }
-          ],
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -1621,10 +716,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"vincent\",\n  \"password\": \"123456\"\n}"
-            },
             "url": {
               "raw": "{{authServiceBaseUrl}}/api/v1/auth/login",
               "host": [
@@ -1637,134 +728,101 @@
                 "login"
               ]
             },
-            "description": "Run first (or to get a new session). On success, saves `accessToken` and `refreshToken`.\n\nWhen the JWT expires (~1h), use **Refresh Token** instead of logging in again.\n\nSample users: `vincent` / `admin` / `tester` \u2014 password `123456`."
+            "description": "AuthController.login; stores accessToken and refreshToken.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login response contains tokens', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(json.refreshToken).to.be.a('string').and.not.empty;",
+                  "  pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "  if (pm.environment) {",
+                  "    pm.environment.set('accessToken', json.accessToken);",
+                  "    pm.environment.set('refreshToken', json.refreshToken);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Refresh Token",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.request.headers.remove('Authorization');"
-                ]
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "AuthController.refresh; rotates tokens.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('accessToken', json.accessToken);",
-                  "    pm.collectionVariables.set('refreshToken', json.refreshToken);",
-                  "    if (pm.environment) {",
-                  "        pm.environment.set('accessToken', json.accessToken);",
-                  "        pm.environment.set('refreshToken', json.refreshToken);",
-                  "    }",
-                  "    pm.test('tokens rotated', function () {",
-                  "        pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
-                  "        pm.expect(json.refreshToken).to.be.a('string').and.not.empty;",
-                  "    });",
-                  "}"
+                  "pm.test('refresh response contains rotated tokens', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "  if (pm.environment) {",
+                  "    pm.environment.set('accessToken', json.accessToken);",
+                  "    pm.environment.set('refreshToken', json.refreshToken);",
+                  "  }",
+                  "});"
                 ]
               }
             }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
-            },
-            "url": {
-              "raw": "{{authServiceBaseUrl}}/api/v1/auth/refresh",
-              "host": [
-                "{{authServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "refresh"
-              ]
-            },
-            "description": "Run after **Login** when `accessToken` is expired or before it expires to rotate refresh token.\n\n- Request body: `{ \"refreshToken\": \"{{refreshToken}}\" }` (no Bearer required).\n- On 200: overwrites `accessToken` and `refreshToken` \u2014 always use the latest refresh value.\n- Reusing an old refresh token returns 401."
-          },
-          "response": []
-        },
-        {
-          "name": "Refresh Token (invalid)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"not-a-valid-refresh-token\"\n}"
-            },
-            "url": {
-              "raw": "{{authServiceBaseUrl}}/api/v1/auth/refresh",
-              "host": [
-                "{{authServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "refresh"
-              ]
-            },
-            "description": "Expected HTTP 401 with message `Invalid refresh token`."
-          },
-          "response": []
-        },
-        {
-          "name": "Login (invalid credentials)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"vincent\",\n  \"password\": \"wrong-password\"\n}"
-            },
-            "url": {
-              "raw": "{{authServiceBaseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{authServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Also sends Bearer if token exists. Expected HTTP 401."
-          },
-          "response": []
+          ]
         },
         {
           "name": "Validate Token",
@@ -1783,28 +841,17 @@
                 "validate"
               ]
             },
-            "description": "Requires valid `accessToken` from **Login** or **Refresh Token**. Expected: `{ \"valid\": true, ... }`"
+            "description": "AuthController.validate"
           },
           "response": []
         },
         {
-          "name": "Validate Token (missing token)",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.request.headers.remove('Authorization');"
-                ]
-              }
-            }
-          ],
+          "name": "Health",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{authServiceBaseUrl}}/api/v1/auth/validate",
+              "raw": "{{authServiceBaseUrl}}/api/v1/auth/health",
               "host": [
                 "{{authServiceBaseUrl}}"
               ],
@@ -1812,10 +859,13 @@
                 "api",
                 "v1",
                 "auth",
-                "validate"
+                "health"
               ]
             },
-            "description": "Only request that **strips** Authorization (for testing 401). Expected HTTP 401."
+            "description": "AuthController.health",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         }
@@ -1823,7 +873,6 @@
     },
     {
       "name": "Product Service",
-      "description": "Direct to ProductService (**8081**). For gateway use **Gateway Service \u2192 ProductService**.",
       "item": [
         {
           "name": "Health",
@@ -1842,12 +891,15 @@
                 "health"
               ]
             },
-            "description": "Public health check. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+            "description": "ProductController.health",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         },
         {
-          "name": "List Products",
+          "name": "List Active Products",
           "request": {
             "method": "GET",
             "header": [],
@@ -1862,33 +914,12 @@
                 "products"
               ]
             },
-            "description": "Requires valid JWT. Returns seed catalog (iPhone 17, RTX 5090, PS6)."
+            "description": "ProductController.listProducts"
           },
           "response": []
         },
         {
-          "name": "Get Product by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{productServiceBaseUrl}}/api/v1/products/1",
-              "host": [
-                "{{productServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "products",
-                "1"
-              ]
-            },
-            "description": "Requires valid JWT. Product id=1 is iPhone 17 (Redis cache-aside)."
-          },
-          "response": []
-        },
-        {
-          "name": "Hot Products",
+          "name": "List Hot Products",
           "request": {
             "method": "GET",
             "header": [],
@@ -1904,38 +935,163 @@
                 "hot"
               ]
             },
-            "description": "Requires valid JWT. Preloaded hot product IDs (1, 2, 3)."
+            "description": "ProductController.listHotProducts"
           },
           "response": []
         },
         {
-          "name": "List Products (missing token)",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.request.headers.remove('Authorization');"
-                ]
-              }
-            }
-          ],
+          "name": "Admin Demo",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{productServiceBaseUrl}}/api/v1/products",
+              "raw": "{{productServiceBaseUrl}}/api/v1/products/admin-demo",
               "host": [
                 "{{productServiceBaseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "products",
+                "admin-demo"
+              ]
+            },
+            "description": "ProductController.adminOnlyDemo; requires ADMIN role."
+          },
+          "response": []
+        },
+        {
+          "name": "User/Admin Demo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/products/user-demo",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "user-demo"
+              ]
+            },
+            "description": "ProductController.userOrAdminDemo; requires USER or ADMIN role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/products/{{productId}}",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "description": "ProductController.getProduct"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product and Publish ProductCreatedEvent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/product-sync/products",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product-sync",
                 "products"
               ]
             },
-            "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
+            "description": "ProductRagSyncController.create; inserts DB row and publishes product-created for AiService consumer.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{productCode}}\",\n  \"name\": \"Postman Camera Phone\",\n  \"description\": \"Created from Postman collection for AI vector sync.\",\n  \"price\": 699.0,\n  \"stock\": 20,\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product and Publish ProductUpdatedEvent",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/product-sync/products/{{productCode}}",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product-sync",
+                "products",
+                "{{productCode}}"
+              ]
+            },
+            "description": "ProductRagSyncController.update; updates DB row and publishes product-updated.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Camera Phone Pro\",\n  \"description\": \"Updated from Postman collection for AI vector sync.\",\n  \"price\": 799.0,\n  \"stock\": 15,\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product and Publish ProductDeletedEvent",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/api/v1/product-sync/products/{{productCode}}",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product-sync",
+                "products",
+                "{{productCode}}"
+              ]
+            },
+            "description": "ProductRagSyncController.delete; deletes DB row and publishes product-deleted."
           },
           "response": []
         }
@@ -1943,7 +1099,6 @@
     },
     {
       "name": "Inventory Service",
-      "description": "Direct to InventoryService (**8082**). For gateway use **Gateway Service \u2192 InventoryService**.",
       "item": [
         {
           "name": "Health",
@@ -1961,7 +1116,10 @@
                 "health"
               ]
             },
-            "description": "Public. Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
+            "description": "InventoryController.health",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         },
@@ -1981,40 +1139,12 @@
                 "{{inventoryProductCode}}"
               ]
             },
-            "description": "Requires JWT. Set `inventoryProductCode` (default `IPHONE17`)."
+            "description": "InventoryController.get"
           },
           "response": []
         },
         {
-          "name": "Reserve Stock",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                  "pm.collectionVariables.set('inventoryRequestId', requestId);",
-                  "if (pm.environment) {",
-                  "    pm.environment.set('inventoryRequestId', requestId);",
-                  "}"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    pm.test('reserve succeeded', function () {",
-                  "        pm.expect(pm.response.json().success).to.eql(true);",
-                  "    });",
-                  "}"
-                ]
-              }
-            }
-          ],
+          "name": "Reserve Inventory",
           "request": {
             "method": "POST",
             "header": [
@@ -2023,10 +1153,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-            },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/reserve",
               "host": [
@@ -2038,56 +1164,34 @@
                 "reserve"
               ]
             },
-            "description": "Reserves stock (available \u2192 reserved). Saves `inventoryRequestId` for idempotency demo."
-          },
-          "response": []
-        },
-        {
-          "name": "Reserve (idempotent retry)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "description": "InventoryController.reserve; generates a fresh requestId before send.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-            },
-            "url": {
-              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/reserve",
-              "host": [
-                "{{inventoryServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "inventory",
-                "reserve"
-              ]
-            },
-            "description": "Run after **Reserve Stock** with the same `inventoryRequestId`. Should return the same result without double-reserving."
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": []
-        },
-        {
-          "name": "Release Stock",
+          "response": [],
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                  "pm.collectionVariables.set('inventoryRequestId', requestId);",
-                  "if (pm.environment) {",
-                  "    pm.environment.set('inventoryRequestId', requestId);",
-                  "}"
+                  "const id = 'inv-' + Date.now();",
+                  "pm.collectionVariables.set('inventoryRequestId', id);",
+                  "if (pm.environment) pm.environment.set('inventoryRequestId', id);"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Release Inventory",
           "request": {
             "method": "POST",
             "header": [
@@ -2096,10 +1200,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-            },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/release",
               "host": [
@@ -2111,27 +1211,34 @@
                 "release"
               ]
             },
-            "description": "Moves quantity from reserved back to available. Use after **Reserve Stock**."
+            "description": "InventoryController.release; generates a fresh requestId before send.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": []
-        },
-        {
-          "name": "Deduct Stock",
+          "response": [],
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                  "pm.collectionVariables.set('inventoryRequestId', requestId);",
-                  "if (pm.environment) {",
-                  "    pm.environment.set('inventoryRequestId', requestId);",
-                  "}"
+                  "const id = 'inv-' + Date.now();",
+                  "pm.collectionVariables.set('inventoryRequestId', id);",
+                  "if (pm.environment) pm.environment.set('inventoryRequestId', id);"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Deduct Inventory",
           "request": {
             "method": "POST",
             "header": [
@@ -2140,10 +1247,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}"
-            },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/deduct",
               "host": [
@@ -2155,27 +1258,35 @@
                 "deduct"
               ]
             },
-            "description": "Consumes reserved stock (e.g. after payment). Reserve first, then deduct."
+            "description": "InventoryController.deduct; generates a fresh requestId before send.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{inventoryRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": []
-        },
-        {
-          "name": "Concurrent Reserve Demo",
+          "response": [],
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.request.headers.remove('Authorization');"
+                  "const id = 'inv-' + Date.now();",
+                  "pm.collectionVariables.set('inventoryRequestId', id);",
+                  "if (pm.environment) pm.environment.set('inventoryRequestId', id);"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Concurrent Reserve Demo",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -2183,10 +1294,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"productCode\": \"RTX5090\",\n  \"concurrentRequests\": 30,\n  \"quantityPerRequest\": 1\n}"
-            },
             "url": {
               "raw": "{{inventoryServiceBaseUrl}}/api/inventory/demo/concurrent-reserve",
               "host": [
@@ -2199,38 +1306,16 @@
                 "concurrent-reserve"
               ]
             },
-            "description": "Public stress demo (no JWT). RTX5090 seed stock = 20; expect successes \u2264 20."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Inventory (missing token)",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.request.headers.remove('Authorization');"
-                ]
+            "description": "InventoryController.concurrentDemo",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"concurrentRequests\": 20,\n  \"quantityPerRequest\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{inventoryServiceBaseUrl}}/api/inventory/{{inventoryProductCode}}",
-              "host": [
-                "{{inventoryServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "inventory",
-                "{{inventoryProductCode}}"
-              ]
-            },
-            "description": "Strips Authorization. Expected HTTP 401."
           },
           "response": []
         }
@@ -2238,7 +1323,6 @@
     },
     {
       "name": "Order Service",
-      "description": "Direct to OrderService (**8083**). Kafka required. For gateway use **Gateway Service \u2192 OrderService**.",
       "item": [
         {
           "name": "Health",
@@ -2255,36 +1339,16 @@
                 "orders",
                 "health"
               ]
+            },
+            "description": "OrderController.health",
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
         },
         {
           "name": "Create Order",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                  "pm.collectionVariables.set('orderRequestId', requestId);"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const orderNo = pm.response.json().data.orderNo;",
-                  "    pm.collectionVariables.set('lastOrderNo', orderNo);",
-                  "}"
-                ]
-              }
-            }
-          ],
           "request": {
             "method": "POST",
             "header": [
@@ -2293,10 +1357,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"productCode\": \"IPHONE17\",\n  \"quantity\": 1,\n  \"requestId\": \"{{orderRequestId}}\"\n}"
-            },
             "url": {
               "raw": "{{orderServiceBaseUrl}}/api/orders",
               "host": [
@@ -2306,9 +1366,48 @@
                 "api",
                 "orders"
               ]
+            },
+            "description": "OrderController.create; saves data.orderNo into {{lastOrderNo}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"quantity\": 1,\n  \"requestId\": \"{{orderRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = 'order-' + Date.now();",
+                  "pm.collectionVariables.set('orderRequestId', id);",
+                  "if (pm.environment) pm.environment.set('orderRequestId', id);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('save order number', function () {",
+                  "  const json = pm.response.json();",
+                  "  const orderNo = json.data && json.data.orderNo;",
+                  "  if (orderNo) {",
+                  "    pm.collectionVariables.set('lastOrderNo', orderNo);",
+                  "    if (pm.environment) pm.environment.set('lastOrderNo', orderNo);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Order",
@@ -2325,7 +1424,8 @@
                 "orders",
                 "{{lastOrderNo}}"
               ]
-            }
+            },
+            "description": "OrderController.get"
           },
           "response": []
         },
@@ -2345,7 +1445,8 @@
                 "status",
                 "{{lastOrderNo}}"
               ]
-            }
+            },
+            "description": "OrderController.status"
           },
           "response": []
         },
@@ -2365,6 +1466,42 @@
                 "{{lastOrderNo}}",
                 "cancel"
               ]
+            },
+            "description": "OrderController.cancel"
+          },
+          "response": []
+        },
+        {
+          "name": "Concurrent Create Demo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/orders/demo/concurrent-create",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "demo",
+                "concurrent-create"
+              ]
+            },
+            "description": "OrderController.concurrentDemo",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"{{inventoryProductCode}}\",\n  \"concurrentRequests\": 20,\n  \"quantityPerRequest\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -2373,25 +1510,10 @@
     },
     {
       "name": "AI Service",
-      "description": "Direct to AiService (**8084**). Not proxied by the gateway (gateway only routes Product/Inventory/Order). All `/api/v1/ai/*` business endpoints require a valid JWT \u2014 run **Auth Service \u2192 Login** first.\n\n**Suggested flow:** `Chat` (saves `aiConversationId`) \u2192 `Chat (follow-up)` \u2192 `Get Conversation` \u2192 `Delete Conversation`.\n\n`Ask` (RAG) needs product vectors synced from product events + a valid `OPENAI_API_KEY` configured on the service.",
       "item": [
         {
           "name": "Health",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.request.headers.remove('Authorization');"
-                ]
-              }
-            }
-          ],
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "GET",
             "header": [],
             "url": {
@@ -2406,170 +1528,10 @@
                 "health"
               ]
             },
-            "description": "Public health check (no JWT). Expected: `{ \"success\": true, \"data\": { \"status\": \"UP\" } }`"
-          },
-          "response": []
-        },
-        {
-          "name": "Chat",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.collectionVariables.set('aiConversationId', '');"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const conversationId = pm.response.json().data.conversationId;",
-                  "    pm.collectionVariables.set('aiConversationId', conversationId);",
-                  "    if (pm.environment) {",
-                  "        pm.environment.set('aiConversationId', conversationId);",
-                  "    }",
-                  "    pm.test('conversationId saved for follow-up turns', function () {",
-                  "        pm.expect(conversationId).to.be.a('string').and.not.empty;",
-                  "    });",
-                  "}"
-                ]
-              }
+            "description": "AiController.health",
+            "auth": {
+              "type": "noauth"
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"message\": \"Hello, what can you help me with?\"\n}"
-            },
-            "url": {
-              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/chat",
-              "host": [
-                "{{aiServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "ai",
-                "chat"
-              ]
-            },
-            "description": "Starts a new conversation (no `conversationId` in body). Requires JWT.\n\nOn 200, saves the returned `conversationId` to the `aiConversationId` collection variable so **Chat (follow-up)**, **Get Conversation**, and **Delete Conversation** reuse it."
-          },
-          "response": []
-        },
-        {
-          "name": "Chat (follow-up)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"message\": \"What did I just ask you?\",\n  \"conversationId\": \"{{aiConversationId}}\"\n}"
-            },
-            "url": {
-              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/chat",
-              "host": [
-                "{{aiServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "ai",
-                "chat"
-              ]
-            },
-            "description": "Run after **Chat**. Sends the saved `conversationId` so the service loads prior turns from Redis (conversation memory)."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Conversation",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/conversation/{{aiConversationId}}",
-              "host": [
-                "{{aiServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "ai",
-                "conversation",
-                "{{aiConversationId}}"
-              ]
-            },
-            "description": "Requires JWT. Returns the full message history for the saved `aiConversationId`. Expected HTTP 404 if the conversation does not exist (or expired)."
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Conversation",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/conversation/{{aiConversationId}}",
-              "host": [
-                "{{aiServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "ai",
-                "conversation",
-                "{{aiConversationId}}"
-              ]
-            },
-            "description": "Requires JWT. Deletes the conversation history for the saved `aiConversationId` from Redis."
-          },
-          "response": []
-        },
-        {
-          "name": "Ask (Product RAG)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"question\": \"Which phone do you recommend for photography?\"\n}"
-            },
-            "url": {
-              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/ask",
-              "host": [
-                "{{aiServiceBaseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "ai",
-                "ask"
-              ]
-            },
-            "description": "Requires JWT. Retrieval-Augmented Generation over the product catalog: embeds the question, searches the vector store (ChromaDB), and asks the LLM with retrieved product context.\n\n**Prerequisites:** product vectors synced via Kafka product events + a valid `OPENAI_API_KEY` configured on ai-service. Returns 503 if the external AI dependency is unavailable."
           },
           "response": []
         },
@@ -2579,7 +1541,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/recommendations",
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/recommendations?context=photography",
               "host": [
                 "{{aiServiceBaseUrl}}"
               ],
@@ -2588,9 +1550,15 @@
                 "v1",
                 "ai",
                 "recommendations"
+              ],
+              "query": [
+                {
+                  "key": "context",
+                  "value": "photography"
+                }
               ]
             },
-            "description": "Requires JWT. Personalized recommendations for the authenticated user via user-based collaborative filtering (\"shoppers with similar history\"), with a global-popularity fallback on cold start.\n\n**Needs behaviour signals first:** place a few orders while logged in (Order Service \u2192 Create Order) \u2014 order/inventory events feed the signal store. Result is cached per user (cache-aside) and invalidated when new signals arrive. Empty `items` means no signals yet."
+            "description": "AiController.recommend"
           },
           "response": []
         },
@@ -2612,27 +1580,13 @@
                 "{{inventoryProductCode}}"
               ]
             },
-            "description": "Requires JWT. Related-product recommendations seeded by a single product code (default `IPHONE17` via `inventoryProductCode`): products co-purchased by shoppers who also bought this one, excluding the seed. Falls back to popularity when there is no co-occurrence yet."
+            "description": "AiController.recommendForProduct"
           },
           "response": []
         },
         {
-          "name": "Chat (missing token)",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.request.headers.remove('Authorization');"
-                ]
-              }
-            }
-          ],
+          "name": "Chat",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -2640,10 +1594,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"message\": \"Hello\"\n}"
-            },
             "url": {
               "raw": "{{aiServiceBaseUrl}}/api/v1/ai/chat",
               "host": [
@@ -2656,7 +1606,330 @@
                 "chat"
               ]
             },
-            "description": "Strips Authorization to verify JWT enforcement. Expected HTTP 401."
+            "description": "AiController.chat; saves returned conversationId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Which phone do you recommend for photography?\",\n  \"conversationId\": \"{{aiConversationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('save conversation id', function () {",
+                  "  const json = pm.response.json();",
+                  "  const id = json.data && json.data.conversationId;",
+                  "  if (id) {",
+                  "    pm.collectionVariables.set('aiConversationId', id);",
+                  "    if (pm.environment) pm.environment.set('aiConversationId', id);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RAG Ask",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/ask",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "ask"
+              ]
+            },
+            "description": "RagController.ask",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Which phone do you recommend for photography?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Conversation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/conversation/{{aiConversationId}}",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "conversation",
+                "{{aiConversationId}}"
+              ]
+            },
+            "description": "ConversationController.get"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Conversation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/conversation/{{aiConversationId}}",
+              "host": [
+                "{{aiServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "conversation",
+                "{{aiConversationId}}"
+              ]
+            },
+            "description": "ConversationController.delete"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "LLM",
+      "description": "Manual RAG pipeline calls: OpenAI embeddings, Chroma collection lookup, Chroma vector query, and OpenAI chat completion. Each request uses its own Bearer Token auth with `{{API-KEY}}` and does not inherit collection auth.",
+      "item": [
+        {
+          "name": "Step1: embeddings",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{API-KEY}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"text-embedding-3-small\",\n  \"input\": [\n    \"Which phone do you recommend for photography?\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.openai.com/v1/embeddings",
+              "protocol": "https",
+              "host": [
+                "api",
+                "openai",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "embeddings"
+              ]
+            },
+            "description": "Equivalent to OpenAiEmbeddingProvider.embed(question). Bearer token uses {{API-KEY}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Step2: Fetch collection-id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{API-KEY}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"products\",\n  \"get_or_create\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/v2/tenants/default_tenant/databases/default_database/collections",
+              "protocol": "http",
+              "host": [
+                "localhost:8000"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "tenants",
+                "default_tenant",
+                "databases",
+                "default_database",
+                "collections"
+              ]
+            },
+            "description": "Equivalent to Chroma collection get_or_create. Saves response id into {{chromaCollectionId}} when present."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('save Chroma collection id', function () {",
+                  "  const json = pm.response.json();",
+                  "  const id = json.id || json.collection_id;",
+                  "  if (id) {",
+                  "    pm.collectionVariables.set('chromaCollectionId', id);",
+                  "    if (pm.environment) pm.environment.set('chromaCollectionId', id);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step3: SearchFromDB",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{API-KEY}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query_embeddings\": [\n    [\n      0.12,\n      0.34,\n      -0.07,\n      0.56,\n      -0.21,\n      0.09\n    ]\n  ],\n  \"n_results\": 3,\n  \"include\": [\n    \"documents\",\n    \"metadatas\",\n    \"distances\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/v2/tenants/default_tenant/databases/default_database/collections/{{chromaCollectionId}}/query",
+              "protocol": "http",
+              "host": [
+                "localhost:8000"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "tenants",
+                "default_tenant",
+                "databases",
+                "default_database",
+                "collections",
+                "{{chromaCollectionId}}",
+                "query"
+              ]
+            },
+            "description": "Equivalent to ChromaProductVectorStore.similaritySearch(vector, topK). Example vector is shortened intentionally."
+          },
+          "response": []
+        },
+        {
+          "name": "Step4: LLM calling",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{API-KEY}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.2,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a shopping assistant for an e-commerce platform.\\nAnswer the user's question using ONLY the product context provided.\\nIf the context is insufficient, say you don't have enough information.\\nBe concise and cite product codes when relevant.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Product context:\\n- [PHONE-001] Great camera phone with optical zoom.\\n- [PHONE-002] Budget phone with long battery life.\\n\\nQuestion: Which phone is best for photography?\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.openai.com/v1/chat/completions",
+              "protocol": "https",
+              "host": [
+                "api",
+                "openai",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "chat",
+                "completions"
+              ]
+            },
+            "description": "Equivalent to OpenAiLlmClient.complete(systemPrompt, userPrompt). Bearer token uses {{API-KEY}}."
           },
           "response": []
         }

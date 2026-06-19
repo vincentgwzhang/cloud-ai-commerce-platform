@@ -8,6 +8,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -44,5 +47,17 @@ class GlobalExceptionHandlerTest {
         when(request.getRequestURI()).thenReturn("/api/inventory/IPHONE17");
         ResponseEntity<?> response = handler.handleGeneral(new RuntimeException("boom"), request);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Test
+    void handleValidationUsesFirstFieldError() {
+        BindingResult bindingResult = org.mockito.Mockito.mock(BindingResult.class);
+        when(bindingResult.getFieldErrors()).thenReturn(java.util.List.of(new FieldError("request", "quantity", "must be positive")));
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
+
+        ResponseEntity<?> response = handler.handleValidation(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(String.valueOf(response.getBody())).contains("quantity", "must be positive");
     }
 }

@@ -2,15 +2,13 @@ package com.vincent.aiservice.rag.embedding;
 
 import com.vincent.aiservice.config.OpenAiProperties;
 import com.vincent.aiservice.exception.ExternalAiException;
-import org.springframework.core.ParameterizedTypeReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * OpenAI embeddings backend ({@code POST /v1/embeddings}).
@@ -20,10 +18,6 @@ import java.util.Map;
  */
 @Component
 public class OpenAiEmbeddingProvider implements EmbeddingProvider {
-
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
-            new ParameterizedTypeReference<>() {
-            };
 
     private final RestClient restClient;
     private final OpenAiProperties properties;
@@ -46,26 +40,25 @@ public class OpenAiEmbeddingProvider implements EmbeddingProvider {
     @Override
     public List<float[]> embed(List<String> texts) {
         requireApiKey();
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", properties.embeddingModel());
-        body.put("input", texts);
-
-        Map<String, Object> response = post(body);
-        List<?> data = asList(response.get("data"));
+        OpenAiEmbeddingResponse response = post(new OpenAiEmbeddingRequest(properties.embeddingModel(), texts));
+        List<EmbeddingData> data = response == null ? null : response.data();
         if (data == null || data.size() != texts.size()) {
             throw new ExternalAiException("Unexpected embeddings response size from OpenAI");
         }
-        return data.stream().map(OpenAiEmbeddingProvider::toVector).toList();
+        return data.stream()
+                .map(EmbeddingData::embedding)
+                .map(OpenAiEmbeddingProvider::toVector)
+                .toList();
     }
 
-    private Map<String, Object> post(Map<String, Object> body) {
+    private OpenAiEmbeddingResponse post(OpenAiEmbeddingRequest body) {
         try {
             return restClient.post()
                     .uri("/v1/embeddings")
                     .header("Authorization", "Bearer " + properties.apiKey())
                     .body(body)
                     .retrieve()
-                    .body(MAP_TYPE);
+                    .body(OpenAiEmbeddingResponse.class);
         } catch (RestClientException ex) {
             throw new ExternalAiException("OpenAI embeddings request failed: " + ex.getMessage(), ex);
         }
@@ -77,20 +70,32 @@ public class OpenAiEmbeddingProvider implements EmbeddingProvider {
         }
     }
 
-    private static float[] toVector(Object item) {
-        Map<?, ?> map = (Map<?, ?>) item;
-        List<?> embedding = asList(map.get("embedding"));
+    private static float[] toVector(List<Float> embedding) {
         if (embedding == null) {
             throw new ExternalAiException("Missing embedding in OpenAI response");
         }
         float[] vector = new float[embedding.size()];
         for (int i = 0; i < embedding.size(); i++) {
-            vector[i] = ((Number) embedding.get(i)).floatValue();
+            vector[i] = embedding.get(i);
         }
         return vector;
     }
 
-    private static List<?> asList(Object value) {
-        return value instanceof List<?> list ? list : null;
+    private record OpenAiEmbeddingRequest(
+            String model,
+            List<String> input
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record OpenAiEmbeddingResponse(
+            List<EmbeddingData> data
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record EmbeddingData(
+            List<Float> embedding
+    ) {
     }
 }

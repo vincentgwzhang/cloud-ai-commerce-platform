@@ -54,7 +54,7 @@ app:
       max-messages: 50
     openai:
       # IMPORTANT: do NOT hard-code the key here. Provide it via the OPENAI_API_KEY env var.
-      api-key: ${OPENAI_API_KEY:}
+      api-key: ${OPENAI_API_KEY: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}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       embedding-model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
       chat-model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}

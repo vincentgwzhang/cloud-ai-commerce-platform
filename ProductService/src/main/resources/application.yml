@@ -28,6 +28,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 app:
   jwt:
@@ -48,6 +53,11 @@ app:
         - 1
         - 2
         - 3
+  kafka:
+    topics:
+      product-created: product-created
+      product-updated: product-updated
+      product-deleted: product-deleted
 
 springdoc:
   api-docs:

@@ -124,11 +124,9 @@
                         <exclude>**/dto/**</exclude>
                         <exclude>**/kafka/**</exclude>
                         <exclude>**/config/KafkaConsumerConfig.class</exclude>
-                        <exclude>**/config/ApplicationConfig.class</exclude>
-                        <exclude>**/config/OpenApiConfig.class</exclude>
-                        <exclude>**/config/SecurityConfig.class</exclude>
-                        <exclude>**/config/JwtConfig.class</exclude>
+                        <exclude>**/config/**</exclude>
                         <exclude>**/service/OrderConcurrencyDemoService.class</exclude>
+                        <exclude>**/service/OrderConcurrencyDemoService$*.class</exclude>
                         <exclude>**/security/**</exclude>
                         <exclude>**/observability/**</exclude>
                         <exclude>**/entity/**</exclude>

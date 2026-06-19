@@ -5,10 +5,15 @@ import com.vincent.productservice.entity.ProductStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findByStatusOrderByIdAsc(ProductStatus status);
 
     List<Product> findByIdInOrderByIdAsc(Iterable<Long> ids);
+
+    Optional<Product> findByProductCode(String productCode);
+
+    boolean existsByProductCode(String productCode);
 }

@@ -3,6 +3,7 @@ package com.vincent.aiservice.rag.vector;
 import com.vincent.aiservice.config.ChromaProperties;
 import com.vincent.aiservice.config.RagProperties;
 import com.vincent.aiservice.exception.ExternalAiException;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -61,11 +62,14 @@ public class ChromaProductVectorStore implements ProductVectorStore {
     @Override
     public List<ProductMatch> similaritySearch(float[] queryEmbedding, int topK) {
         String id = collectionId();
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("query_embeddings", List.of(toList(queryEmbedding)));
-        body.put("n_results", topK);
-        body.put("include", List.of("documents", "metadatas", "distances"));
-        Map<String, Object> response = post(collectionsBasePath + "/" + id + "/query", body);
+        ChromaQueryResponse response = postQuery(
+                collectionsBasePath + "/" + id + "/query",
+                new ChromaQueryRequest(
+                        List.of(toList(queryEmbedding)),
+                        topK,
+                        List.of("documents", "metadatas", "distances")
+                )
+        );
         return parseMatches(response);
     }
 
@@ -76,17 +80,40 @@ public class ChromaProductVectorStore implements ProductVectorStore {
         }
         synchronized (this) {
             if (collectionId == null) {
-                Map<String, Object> body = new LinkedHashMap<>();
-                body.put("name", ragProperties.collection());
-                body.put("get_or_create", true);
-                Map<String, Object> response = post(collectionsBasePath, body);
-                Object id = response.get("id");
-                if (!(id instanceof String idString)) {
+                ChromaCollectionResponse response = postCollection(
+                        collectionsBasePath,
+                        new ChromaCollectionRequest(ragProperties.collection(), true)
+                );
+                if (response == null || response.id() == null) {
                     throw new ExternalAiException("Chroma did not return a collection id");
                 }
-                collectionId = idString;
+                collectionId = response.id();
             }
             return collectionId;
+        }
+    }
+
+    private ChromaCollectionResponse postCollection(String uri, ChromaCollectionRequest body) {
+        try {
+            return restClient.post()
+                    .uri(uri)
+                    .body(body)
+                    .retrieve()
+                    .body(ChromaCollectionResponse.class);
+        } catch (RestClientException ex) {
+            throw new ExternalAiException("Chroma request failed (" + uri + "): " + ex.getMessage(), ex);
+        }
+    }
+
+    private ChromaQueryResponse postQuery(String uri, ChromaQueryRequest body) {
+        try {
+            return restClient.post()
+                    .uri(uri)
+                    .body(body)
+                    .retrieve()
+                    .body(ChromaQueryResponse.class);
+        } catch (RestClientException ex) {
+            throw new ExternalAiException("Chroma request failed (" + uri + "): " + ex.getMessage(), ex);
         }
     }
 
@@ -102,46 +129,30 @@ public class ChromaProductVectorStore implements ProductVectorStore {
         }
     }
 
-    private static List<ProductMatch> parseMatches(Map<String, Object> response) {
+    private static List<ProductMatch> parseMatches(ChromaQueryResponse response) {
         if (response == null) {
             return List.of();
         }
-        List<String> ids = firstRow(response.get("ids"));
+        List<String> ids = firstRow(response.ids());
         if (ids.isEmpty()) {
             return List.of();
         }
-        List<String> documents = firstRow(response.get("documents"));
-        List<?> metadatas = firstRowRaw(response.get("metadatas"));
-        List<?> distances = firstRowRaw(response.get("distances"));
+        List<String> documents = firstRow(response.documents());
+        List<Map<String, Object>> metadatas = firstRow(response.metadatas());
+        List<Double> distances = firstRow(response.distances());
 
         List<ProductMatch> matches = new java.util.ArrayList<>(ids.size());
         for (int i = 0; i < ids.size(); i++) {
             String document = i < documents.size() ? documents.get(i) : null;
-            double distance = distances != null && i < distances.size()
-                    ? ((Number) distances.get(i)).doubleValue() : Double.NaN;
-            Map<String, Object> metadata = metadatas != null && i < metadatas.size()
-                    ? castMetadata(metadatas.get(i)) : Map.of();
+            double distance = i < distances.size() ? distances.get(i) : Double.NaN;
+            Map<String, Object> metadata = i < metadatas.size() ? metadatas.get(i) : Map.of();
             matches.add(new ProductMatch(ids.get(i), distance, document, metadata));
         }
         return matches;
     }
 
-    @SuppressWarnings("unchecked")
-    private static List<String> firstRow(Object value) {
-        List<?> raw = firstRowRaw(value);
-        return raw == null ? List.of() : (List<String>) raw;
-    }
-
-    private static List<?> firstRowRaw(Object value) {
-        if (value instanceof List<?> outer && !outer.isEmpty() && outer.get(0) instanceof List<?> inner) {
-            return inner;
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> castMetadata(Object value) {
-        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    private static <T> List<T> firstRow(List<List<T>> value) {
+        return value == null || value.isEmpty() || value.get(0) == null ? List.of() : value.get(0);
     }
 
     private static List<Float> toList(float[] embedding) {
@@ -150,5 +161,33 @@ public class ChromaProductVectorStore implements ProductVectorStore {
             list.add(v);
         }
         return list;
+    }
+
+    private record ChromaCollectionRequest(
+            String name,
+            boolean get_or_create
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ChromaCollectionResponse(
+            String id
+    ) {
+    }
+
+    private record ChromaQueryRequest(
+            List<List<Float>> query_embeddings,
+            int n_results,
+            List<String> include
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ChromaQueryResponse(
+            List<List<String>> ids,
+            List<List<String>> documents,
+            List<List<Map<String, Object>>> metadatas,
+            List<List<Double>> distances
+    ) {
     }
 }

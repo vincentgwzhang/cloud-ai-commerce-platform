@@ -24,6 +24,18 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(ProductCodeNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCodeNotFound(ProductCodeNotFoundException ex, HttpServletRequest request) {
+        log.warn("Product not found: {}", ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ProductCodeAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateProductCode(ProductCodeAlreadyExistsException ex, HttpServletRequest request) {
+        log.warn("Duplicate product code: {}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(JwtException.class)
     public ResponseEntity<ErrorResponse> handleJwtException(JwtException ex, HttpServletRequest request) {
         log.warn("Authentication error: {}", ex.getMessage());
