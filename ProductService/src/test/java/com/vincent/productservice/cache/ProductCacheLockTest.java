@@ -1,7 +1,11 @@
 package com.vincent.productservice.cache;
 
 import com.vincent.productservice.config.ProductCacheProperties;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -11,19 +15,28 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class ProductCacheLockTest {
 
-    private final StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-    private final ValueOperations<String, String> valueOps = mock(ValueOperations.class);
-    private final ProductCacheLock lock = new ProductCacheLock(redisTemplate, new ProductCacheProperties(
-            Duration.ofMinutes(5), Duration.ofMinutes(5), Duration.ofSeconds(30),
-            Duration.ofSeconds(3), Duration.ofMinutes(1), 0, List.of()
-    ));
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOps;
+
+    private ProductCacheLock lock;
+
+    @BeforeEach
+    void setUp() {
+        lock = new ProductCacheLock(redisTemplate, new ProductCacheProperties(
+                Duration.ofMinutes(5), Duration.ofMinutes(5), Duration.ofSeconds(30),
+                Duration.ofSeconds(3), Duration.ofMinutes(1), 0, List.of()
+        ));
+    }
 
     @Test
     void tryAcquireReturnsTokenWhenRedisSetNxSucceeds() {

@@ -4,7 +4,11 @@ import com.vincent.productservice.config.ProductKafkaProperties;
 import com.vincent.productservice.kafka.event.ProductCreatedEvent;
 import com.vincent.productservice.kafka.event.ProductDeletedEvent;
 import com.vincent.productservice.kafka.event.ProductUpdatedEvent;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -14,18 +18,25 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class ProductEventPublisherTest {
 
-    private final KafkaTemplate<String, String> kafkaTemplate = mock(KafkaTemplate.class);
-    private final ProductEventPublisher publisher = new ProductEventPublisher(
-            kafkaTemplate,
-            JsonMapper.builder().build(),
-            new ProductKafkaProperties(new ProductKafkaProperties.Topics("product-created", "product-updated", "product-deleted"))
-    );
+    @Mock
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    private ProductEventPublisher publisher;
+
+    @BeforeEach
+    void setUp() {
+        publisher = new ProductEventPublisher(
+                kafkaTemplate,
+                JsonMapper.builder().build(),
+                new ProductKafkaProperties(new ProductKafkaProperties.Topics("product-created", "product-updated", "product-deleted"))
+        );
+    }
 
     @Test
     void publishCreatedSendsJsonToCreatedTopic() {
