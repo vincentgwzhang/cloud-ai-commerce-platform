@@ -12,14 +12,19 @@
 # Optional env:
 #   HELM_RELEASE=commerce-platform
 #   HELM_NAMESPACE=default
-#   REMOVE_MINIKUBE_IMAGES=1
+#   REMOVE_ARGOCD=1                 # default: uninstall Argo CD too
+#   REMOVE_SEALED_SECRETS=1         # default: uninstall Sealed Secrets too
+#   REMOVE_MINIKUBE_IMAGES=1        # default: remove service images from Minikube
 #   REMOVE_OBSERVABILITY_METRICS=1   # default: delete *-service-metrics NodePorts
 set -euo pipefail
 
 HELM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEVOPS_ROOT="$(cd "${HELM_DIR}/.." && pwd)"
 HELM_RELEASE="${HELM_RELEASE:-commerce-platform}"
 HELM_NAMESPACE="${HELM_NAMESPACE:-default}"
-REMOVE_MINIKUBE_IMAGES="${REMOVE_MINIKUBE_IMAGES:-0}"
+REMOVE_ARGOCD="${REMOVE_ARGOCD:-1}"
+REMOVE_SEALED_SECRETS="${REMOVE_SEALED_SECRETS:-1}"
+REMOVE_MINIKUBE_IMAGES="${REMOVE_MINIKUBE_IMAGES:-1}"
 REMOVE_OBSERVABILITY_METRICS="${REMOVE_OBSERVABILITY_METRICS:-1}"
 
 delete_ignored() {
@@ -29,6 +34,11 @@ delete_ignored() {
 echo "========================================"
 echo "  Helm uninstall (commerce-platform)"
 echo "========================================"
+
+if [[ "${REMOVE_ARGOCD}" == "1" ]] && command -v kubectl >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
+  echo "==> Removing Argo CD first (prevents GitOps from recreating resources)"
+  "${DEVOPS_ROOT}/argocd/uninstall-argocd.sh"
+fi
 
 if command -v helm >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
   if helm status "${HELM_RELEASE}" -n "${HELM_NAMESPACE}" >/dev/null 2>&1; then
@@ -57,6 +67,7 @@ if command -v kubectl >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
   done
 
   echo "==> Removing JWT / DB / AI secrets"
+  delete_ignored sealedsecret ai-service-secret -n "${HELM_NAMESPACE}"
   delete_ignored secret auth-service-jwt-keys -n "${HELM_NAMESPACE}"
   delete_ignored secret auth-service-secret -n "${HELM_NAMESPACE}"
   delete_ignored secret ai-service-secret -n "${HELM_NAMESPACE}"
@@ -70,6 +81,11 @@ if command -v kubectl >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
   fi
 fi
 
+if [[ "${REMOVE_SEALED_SECRETS}" == "1" ]] && command -v kubectl >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
+  echo "==> Removing Sealed Secrets controller / CRD / sealing key"
+  "${DEVOPS_ROOT}/argocd/sealed-secrets/uninstall-sealed-secrets.sh"
+fi
+
 if [[ "${REMOVE_MINIKUBE_IMAGES}" == "1" ]] && minikube status >/dev/null 2>&1; then
   echo "==> Removing service images from Minikube (best effort)"
   for tag in \
@@ -80,4 +96,6 @@ fi
 
 echo ""
 echo "==> Helm uninstall complete"
-echo "    Redeploy: ${HELM_DIR}/helm-install.sh"
+echo "    Argo CD, Sealed Secrets, platform workloads, metrics, secrets, and service images were removed."
+echo "    Host MySQL / Redis / Kafka / Chroma were not touched."
+echo "    Redeploy: OPENAI_API_KEY=sk-... ${HELM_DIR}/helm-install.sh"

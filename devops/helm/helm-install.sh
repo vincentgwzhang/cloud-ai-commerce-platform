@@ -13,6 +13,7 @@
 #
 # Optional env:
 #   DB_PASSWORD=1q2w3e4R
+#   OPENAI_API_KEY=sk-...
 #   HELM_RELEASE=commerce-platform
 #   HELM_NAMESPACE=default
 #   SKIP_BUILD=1
@@ -26,6 +27,8 @@ CHART_DIR="${HELM_DIR}/commerce-platform"
 DIST_DIR="${HELM_DIR}/dist"
 LOCAL_DEV_SETUP="${DEVOPS_ROOT}/script/local-dev-setup.sh"
 JWT_KEYS_DIR="${DEVOPS_ROOT}/data/keys"
+ARGOCD_DIR="${DEVOPS_ROOT}/argocd"
+SEALED_VALUES="${CHART_DIR}/values-sealed.yaml"
 
 HELM_RELEASE="${HELM_RELEASE:-commerce-platform}"
 HELM_NAMESPACE="${HELM_NAMESPACE:-default}"
@@ -66,6 +69,12 @@ if [[ ! -f "${CHART_DIR}/Chart.yaml" ]]; then
   exit 1
 fi
 
+if [[ -z "${OPENAI_API_KEY}" ]]; then
+  echo "ERROR: OPENAI_API_KEY is required." >&2
+  echo "Run: OPENAI_API_KEY=sk-... ${HELM_DIR}/helm-install.sh" >&2
+  exit 1
+fi
+
 echo "========================================"
 echo "  Helm install (commerce-platform)"
 echo "========================================"
@@ -84,7 +93,12 @@ if [[ "${HELM_SKIP_UNINSTALL:-0}" != "1" ]]; then
 fi
 
 echo ""
-echo "==> Step 1: JWT keys (${JWT_KEYS_DIR})"
+echo "==> Step 1: install Argo CD + Sealed Secrets"
+"${ARGOCD_DIR}/install-argocd.sh"
+"${ARGOCD_DIR}/sealed-secrets/install-sealed-secrets.sh"
+
+echo ""
+echo "==> Step 2: JWT keys (${JWT_KEYS_DIR})"
 chmod +x "${LOCAL_DEV_SETUP}"
 JWT_KEYS_DIR="${JWT_KEYS_DIR}" "${LOCAL_DEV_SETUP}" --keys-only
 
@@ -94,7 +108,7 @@ if [[ ! -f "${JWT_KEYS_DIR}/private.pem" || ! -f "${JWT_KEYS_DIR}/public.pem" ]]
 fi
 
 echo ""
-echo "==> Step 2: Kubernetes secrets"
+echo "==> Step 3: Kubernetes secrets"
 kubectl create secret generic auth-service-jwt-keys \
   --namespace "${HELM_NAMESPACE}" \
   --from-file=private.pem="${JWT_KEYS_DIR}/private.pem" \
@@ -109,11 +123,16 @@ kubectl create secret generic auth-service-secret \
 
 # ai-service OpenAI key (optional secret; ai-service boots without it but RAG/chat calls fail).
 if [[ -n "${OPENAI_API_KEY}" ]]; then
-  echo "==> ai-service-secret (OPENAI_API_KEY provided)"
-  kubectl create secret generic ai-service-secret \
-    --namespace "${HELM_NAMESPACE}" \
-    --from-literal="OPENAI_API_KEY=${OPENAI_API_KEY}" \
-    --dry-run=client -o yaml | kubectl apply -f -
+  echo "==> Sealing ai-service OPENAI_API_KEY for Argo CD / Sealed Secrets"
+  SECRET_NAMESPACE="${HELM_NAMESPACE}" "${ARGOCD_DIR}/sealed-secrets/seal-ai-openai-key.sh" "${OPENAI_API_KEY}"
+  kubectl delete secret ai-service-secret --namespace "${HELM_NAMESPACE}" --ignore-not-found
+
+  # Do not create ai-service-secret directly here. It is created by the Sealed Secrets
+  # controller from the Helm-rendered SealedSecret.
+  # kubectl create secret generic ai-service-secret \
+  #   --namespace "${HELM_NAMESPACE}" \
+  #   --from-literal="OPENAI_API_KEY=${OPENAI_API_KEY}" \
+  #   --dry-run=client -o yaml | kubectl apply -f -
 else
   echo "    NOTE: OPENAI_API_KEY not set — skipping ai-service-secret."
   echo "          ai-service will start, but OpenAI embedding/chat calls fail until you create it:"
@@ -149,7 +168,7 @@ build_and_tag() {
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   echo ""
-  echo "==> Step 3: build all platform images in Minikube Docker"
+  echo "==> Step 4: build all platform images in Minikube Docker"
   eval "$(minikube docker-env)"
   for entry in "${PLATFORM_SERVICES[@]}"; do
     svc="${entry%%:*}"
@@ -159,7 +178,7 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
   eval "$(minikube docker-env -u)"
 else
   echo ""
-  echo "==> Step 3: SKIP_BUILD=1 — using existing images in Minikube"
+  echo "==> Step 4: SKIP_BUILD=1 — using existing images in Minikube"
 fi
 
 read -r AUTH_REPO AUTH_TAG <<< "$(split_image "${AUTH_IMAGE}")"
@@ -170,6 +189,10 @@ read -r GATEWAY_REPO GATEWAY_TAG <<< "$(split_image "${GATEWAY_IMAGE}")"
 read -r AI_REPO AI_TAG <<< "$(split_image "${AI_IMAGE}")"
 
 CHART_REF="${CHART_DIR}"
+HELM_VALUE_ARGS=()
+if [[ -f "${SEALED_VALUES}" ]]; then
+  HELM_VALUE_ARGS=(-f "${SEALED_VALUES}")
+fi
 if [[ -d "${DIST_DIR}" ]]; then
   LATEST_PKG="$(ls -1t "${DIST_DIR}"/commerce-platform-*.tgz 2>/dev/null | head -1 || true)"
   if [[ -n "${LATEST_PKG}" ]]; then
@@ -180,8 +203,9 @@ if [[ -d "${DIST_DIR}" ]]; then
 fi
 
 echo ""
-echo "==> Step 4: helm upgrade --install"
+echo "==> Step 5: helm upgrade --install"
 helm upgrade --install "${HELM_RELEASE}" "${CHART_REF}" \
+  "${HELM_VALUE_ARGS[@]}" \
   --namespace "${HELM_NAMESPACE}" \
   --create-namespace \
   --set "services.auth.image.repository=${AUTH_REPO}" \
@@ -200,7 +224,7 @@ helm upgrade --install "${HELM_RELEASE}" "${CHART_REF}" \
   --timeout 10m
 
 echo ""
-echo "==> Step 5: rollout status (auth first, then business services, gateway last)"
+echo "==> Step 6: rollout status (auth first, then business services, gateway last)"
 for dep in auth-service product-service inventory-service order-service ai-service gateway-service; do
   kubectl rollout status "deployment/${dep}" -n "${HELM_NAMESPACE}" --timeout=300s
 done

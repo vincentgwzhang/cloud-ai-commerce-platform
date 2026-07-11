@@ -31,7 +31,7 @@ minikube start
 devops/helm/helm-package.sh
 
 # 3) Deploy microservices (builds images unless SKIP_BUILD=1)
-devops/helm/helm-install.sh
+OPENAI_API_KEY=sk-... devops/helm/helm-install.sh
 ```
 
 ## Microservices in chart
