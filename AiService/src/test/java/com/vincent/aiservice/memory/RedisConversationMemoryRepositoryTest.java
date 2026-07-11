@@ -2,7 +2,11 @@ package com.vincent.aiservice.memory;
 
 import com.vincent.aiservice.config.ConversationMemoryProperties;
 import com.vincent.aiservice.cache.AiRedisKeys;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.json.JsonMapper;
@@ -12,19 +16,28 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class RedisConversationMemoryRepositoryTest {
 
-    private final StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-    private final ListOperations<String, String> listOps = mock(ListOperations.class);
-    private final RedisConversationMemoryRepository repository = new RedisConversationMemoryRepository(
-            redisTemplate,
-            JsonMapper.builder().build(),
-            new ConversationMemoryProperties(Duration.ofMinutes(30), 5)
-    );
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ListOperations<String, String> listOps;
+
+    private RedisConversationMemoryRepository repository;
+
+    @BeforeEach
+    void setUp() {
+        repository = new RedisConversationMemoryRepository(
+                redisTemplate,
+                JsonMapper.builder().build(),
+                new ConversationMemoryProperties(Duration.ofMinutes(30), 5)
+        );
+    }
 
     @Test
     void appendSerializesMessageTrimsAndRefreshesTtl() {

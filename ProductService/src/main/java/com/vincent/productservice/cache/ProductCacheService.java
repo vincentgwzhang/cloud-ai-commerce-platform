@@ -111,6 +111,7 @@ public class ProductCacheService {
      * 同时用 null cache 防穿透，用分布式锁防击穿，用 local cache 降低热点 Redis 压力。
      */
     public ProductResponse getById(Long id) {
+        log.info("com.vincent.productservice.cache.ProductCacheService::getById called");
         if (isHotProduct(id)) {
             Optional<ProductResponse> local = localHotCache.get(id);
             if (local.isPresent()) {

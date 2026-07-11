@@ -10,7 +10,6 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -68,7 +67,8 @@ class ChromaProductVectorStoreTest {
                 .andExpect(jsonPath("$.ids[0]").value("P1"))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
 
-        store.upsert(new ProductVector("P1", new float[]{0.12f}, "doc1", Map.of("name", "Phone")));
+        store.upsert(new ProductVector("P1", new float[]{0.12f}, "doc1",
+                new ProductVectorMetadata("P1", "Phone", null, null)));
         store.delete("P1");
 
         server.verify();

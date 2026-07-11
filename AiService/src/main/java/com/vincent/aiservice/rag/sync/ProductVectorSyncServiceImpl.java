@@ -8,6 +8,7 @@ import com.vincent.aiservice.kafka.event.ProductUpdatedEvent;
 import com.vincent.aiservice.rag.ProductDocumentFactory;
 import com.vincent.aiservice.rag.embedding.EmbeddingProvider;
 import com.vincent.aiservice.rag.vector.ProductVector;
+import com.vincent.aiservice.rag.vector.ProductVectorMetadata;
 import com.vincent.aiservice.rag.vector.ProductVectorStore;
 import com.vincent.aiservice.service.AiMetrics;
 import org.slf4j.Logger;
@@ -16,8 +17,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Embeds product snapshots and upserts/deletes them in the vector store.
@@ -94,18 +93,12 @@ public class ProductVectorSyncServiceImpl implements ProductVectorSyncService {
         return duplicate;
     }
 
-    private static Map<String, Object> metadata(String productCode, String name, BigDecimal price, String status) {
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("productCode", productCode);
-        if (name != null) {
-            metadata.put("name", name);
-        }
-        if (price != null) {
-            metadata.put("price", price.toPlainString());
-        }
-        if (status != null) {
-            metadata.put("status", status);
-        }
-        return metadata;
+    private static ProductVectorMetadata metadata(String productCode, String name, BigDecimal price, String status) {
+        return new ProductVectorMetadata(
+                productCode,
+                name,
+                price == null ? null : price.toPlainString(),
+                status
+        );
     }
 }

@@ -3,7 +3,11 @@ package com.vincent.aiservice.cache;
 import com.vincent.aiservice.config.AiProperties;
 import com.vincent.aiservice.dto.RecommendationItem;
 import com.vincent.aiservice.dto.RecommendationResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import tools.jackson.databind.json.JsonMapper;
@@ -14,22 +18,30 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class RecommendationQueryCacheTest {
 
-    private final StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-    private final ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOps;
+
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
-    private final RecommendationQueryCache cache = new RecommendationQueryCache(
-            redisTemplate,
-            jsonMapper,
-            new AiProperties(Duration.ofMinutes(10), 0, 3, "stub")
-    );
+    private RecommendationQueryCache cache;
+
+    @BeforeEach
+    void setUp() {
+        cache = new RecommendationQueryCache(
+                redisTemplate,
+                jsonMapper,
+                new AiProperties(Duration.ofMinutes(10), 0, 3, "stub")
+        );
+    }
 
     @Test
     void findReturnsDeserializedRecommendationWhenPresent() throws Exception {

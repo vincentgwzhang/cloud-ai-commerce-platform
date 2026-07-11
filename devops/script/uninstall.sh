@@ -13,6 +13,10 @@ echo "========================================"
 echo "  Minikube uninstall (all services)"
 echo "========================================"
 
+echo ""
+echo "==> Step 0: remove observability metrics NodePorts"
+"${SCRIPT_ROOT}/observability/minikube-metrics-delete.sh"
+
 "${SCRIPT_ROOT}/GatewayService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/AiService/minikube-uninstall.sh"
 "${SCRIPT_ROOT}/OrderService/minikube-uninstall.sh"

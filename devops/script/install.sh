@@ -63,6 +63,10 @@ export MINIKUBE_SKIP_UNINSTALL=1
 "${SCRIPT_ROOT}/GatewayService/minikube-deploy.sh"
 
 echo ""
+echo "==> Step 7: expose metrics for Minikube observability"
+"${SCRIPT_ROOT}/observability/minikube-metrics-apply.sh"
+
+echo ""
 echo "========================================"
 echo "  Install complete"
 echo "========================================"
@@ -83,7 +87,6 @@ echo "  Kafka:     localhost:9092 (devops/script/docker-compose-app.yml)"
 echo "  Chroma:    localhost:8000 (ai-service RAG; in docker-compose-observability-*.yml)"
 echo ""
 echo "  Grafana (Minikube metrics, no port-forward):"
-echo "    ./devops/script/observability/minikube-metrics-apply.sh"
 echo "    docker compose -f devops/script/docker-compose-observability-minikube.yml up -d"
 echo "    http://localhost:3000  (admin / admin)"
 echo ""

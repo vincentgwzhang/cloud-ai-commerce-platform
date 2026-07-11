@@ -17,11 +17,14 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      * 而不是先把每一条 RefreshToken 查出来、修改实体对象、再交给 Hibernate 做脏检查。
      *
      * flushAutomatically = true：
-     * 把缓存先写进数据库，保证条件真的成立
+     * 先把内存中的改动同步到数据库，再执行 DML
      *
      * clearAutomatically = true：
-     * 意思是说 更新后把缓存全部丢掉，避免看到缓存旧数据
-     * 为什么会缓存数据会过时呢？因为这是 BULK UPDATE, 会绕过 EntityManager
+     * DML 执行后清空一级缓存，避免读取到过期实体
+     * 
+     * 这样可以避免两类问题：
+     * 执行修改前：未 flush 的内存修改影响更新条件或结果。
+     * 执行修改后：一级缓存中的实体仍然保留旧数据。
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE RefreshToken r SET r.revoked = true WHERE r.user.id = :userId AND r.revoked = false")

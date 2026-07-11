@@ -4,12 +4,10 @@ import com.vincent.aiservice.config.ChromaProperties;
 import com.vincent.aiservice.config.RagProperties;
 import com.vincent.aiservice.exception.ExternalAiException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,17 +15,13 @@ import java.util.Map;
  * ChromaDB-backed {@link ProductVectorStore} (Chroma v2 REST API: tenant/database scoped).
  *
  * <p>The collection id is resolved lazily via {@code get_or_create} and cached. Embeddings are
- * sent as plain number lists; responses are parsed from maps to avoid binding-annotation coupling.
+ * sent as plain number lists.
  *
  * <p>Swapping to another vector database only requires a new {@link ProductVectorStore}
  * implementation — nothing else in the RAG pipeline changes.
  */
 @Component
 public class ChromaProductVectorStore implements ProductVectorStore {
-
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
-            new ParameterizedTypeReference<>() {
-            };
 
     private final RestClient restClient;
     private final RagProperties ragProperties;
@@ -45,18 +39,21 @@ public class ChromaProductVectorStore implements ProductVectorStore {
     @Override
     public void upsert(ProductVector vector) {
         String id = collectionId();
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("ids", List.of(vector.productCode()));
-        body.put("embeddings", List.of(toList(vector.embedding())));
-        body.put("documents", List.of(vector.document()));
-        body.put("metadatas", List.of(vector.metadata() == null ? Map.of() : vector.metadata()));
-        post(collectionsBasePath + "/" + id + "/upsert", body);
+        postMutation(
+                collectionsBasePath + "/" + id + "/upsert",
+                new ChromaUpsertRequest(
+                        List.of(vector.productCode()),
+                        List.of(toList(vector.embedding())),
+                        List.of(vector.document()),
+                        List.of(metadata(vector))
+                )
+        );
     }
 
     @Override
     public void delete(String productCode) {
         String id = collectionId();
-        post(collectionsBasePath + "/" + id + "/delete", Map.of("ids", List.of(productCode)));
+        postMutation(collectionsBasePath + "/" + id + "/delete", new ChromaDeleteRequest(List.of(productCode)));
     }
 
     @Override
@@ -117,13 +114,13 @@ public class ChromaProductVectorStore implements ProductVectorStore {
         }
     }
 
-    private Map<String, Object> post(String uri, Map<String, Object> body) {
+    private ChromaMutationResponse postMutation(String uri, Object body) {
         try {
             return restClient.post()
                     .uri(uri)
                     .body(body)
                     .retrieve()
-                    .body(MAP_TYPE);
+                    .body(ChromaMutationResponse.class);
         } catch (RestClientException ex) {
             throw new ExternalAiException("Chroma request failed (" + uri + "): " + ex.getMessage(), ex);
         }
@@ -163,6 +160,12 @@ public class ChromaProductVectorStore implements ProductVectorStore {
         return list;
     }
 
+    private static ProductVectorMetadata metadata(ProductVector vector) {
+        return vector.metadata() == null
+                ? new ProductVectorMetadata(vector.productCode(), null, null, null)
+                : vector.metadata();
+    }
+
     private record ChromaCollectionRequest(
             String name,
             boolean get_or_create
@@ -180,6 +183,23 @@ public class ChromaProductVectorStore implements ProductVectorStore {
             int n_results,
             List<String> include
     ) {
+    }
+
+    private record ChromaUpsertRequest(
+            List<String> ids,
+            List<List<Float>> embeddings,
+            List<String> documents,
+            List<ProductVectorMetadata> metadatas
+    ) {
+    }
+
+    private record ChromaDeleteRequest(
+            List<String> ids
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ChromaMutationResponse() {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
