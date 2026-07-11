@@ -121,7 +121,7 @@ devops/argocd/install-argocd.sh
 
 # 2) 取初始 admin 密码并端口转发 UI
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
-kubectl port-forward svc/argocd-server -n argocd 8080:443
+kubectl port-forward svc/argocd-server -n argocd 28080:443
 
 # 3) 部署前：Secret + 镜像（Argo 不做这两步）
 devops/argocd/bootstrap-platform-secrets.sh

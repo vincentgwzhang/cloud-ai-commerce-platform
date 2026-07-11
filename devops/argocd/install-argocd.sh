@@ -32,7 +32,7 @@ kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 
 echo ""
 echo "==> Argo CD installed"
-echo "    UI:  kubectl port-forward svc/argocd-server -n argocd 8080:443"
+echo "    UI:  kubectl port-forward svc/argocd-server -n argocd 28080:443"
 echo "    User: admin"
 echo "    Pass: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo"
 echo ""

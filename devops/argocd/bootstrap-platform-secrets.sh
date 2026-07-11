@@ -22,6 +22,31 @@ DB_USERNAME="${DB_USERNAME:-vincent}"
 DB_PASSWORD="${DB_PASSWORD:-1q2w3e4R}"
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
+secret_key_size() {
+  local secret_name="${1:?secret name required}"
+  local key_name="${2:?key name required}"
+
+  kubectl get secret "${secret_name}" \
+    --namespace "${HELM_NAMESPACE}" \
+    -o "jsonpath={.data.${key_name}}" 2>/dev/null \
+    | base64 -d 2>/dev/null \
+    | wc -c \
+    | tr -d ' '
+}
+
+verify_secret_key() {
+  local secret_name="${1:?secret name required}"
+  local key_name="${2:?key name required}"
+  local size
+
+  size="$(secret_key_size "${secret_name}" "${key_name}")"
+  if [[ "${size}" =~ ^[0-9]+$ && "${size}" -gt 0 ]]; then
+    echo "    OK: ${secret_name}/${key_name} exists (${size} bytes)"
+  else
+    echo "    WARN: ${secret_name}/${key_name} missing or empty" >&2
+  fi
+}
+
 chmod +x "${LOCAL_DEV_SETUP}"
 JWT_KEYS_DIR="${JWT_KEYS_DIR}" "${LOCAL_DEV_SETUP}" --keys-only
 
@@ -53,6 +78,17 @@ if [[ -n "${OPENAI_API_KEY}" ]]; then
 else
   echo "==> NOTE: OPENAI_API_KEY not set — skipping ai-service-secret"
   echo "         Set it later: OPENAI_API_KEY=sk-... devops/argocd/bootstrap-platform-secrets.sh"
+fi
+
+echo "==> Verifying secret keys (values are not printed)"
+verify_secret_key auth-service-jwt-keys private.pem
+verify_secret_key auth-service-jwt-keys public.pem
+verify_secret_key auth-service-secret DB_USERNAME
+verify_secret_key auth-service-secret DB_PASSWORD
+if kubectl get secret ai-service-secret --namespace "${HELM_NAMESPACE}" >/dev/null 2>&1; then
+  verify_secret_key ai-service-secret OPENAI_API_KEY
+else
+  echo "    NOTE: ai-service-secret not present (OPENAI_API_KEY is optional)"
 fi
 
 echo "==> Secrets ready (Argo CD will not manage these)"
